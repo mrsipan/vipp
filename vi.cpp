@@ -67,7 +67,7 @@ enum class TextObjectType {
 
 struct Range {
     int start_row, start_col;
-    int end_row, end_col;  // exclusive end
+    int end_row, end_col; // exclusive end
 };
 
 struct VisualSelection {
@@ -78,18 +78,19 @@ struct VisualSelection {
 struct LastChange {
     OperatorType op = OperatorType::NONE;
     int count = 1;
-    std::string motion_desc;  // "w", "j", "iw", etc.
-    Range range;              // the affected range BEFORE the change
+    std::string motion_desc;   // "w", "j", "iw", etc.
+    Range range;               // the affected range BEFORE the change
     std::string inserted_text; // for insert-mode changes
     bool was_linewise = false;
     std::vector<std::string> yanked_text; // for put/dot
 };
 
 struct UndoEntry {
-    int cursor_row, cursor_col;       // cursor position before the change
-    int first_line;                    // first affected line index
-    std::vector<std::string> old_lines; // original content of the affected lines
-    int new_line_count;               // how many lines the change produced
+    int cursor_row, cursor_col; // cursor position before the change
+    int first_line;             // first affected line index
+    std::vector<std::string>
+        old_lines;      // original content of the affected lines
+    int new_line_count; // how many lines the change produced
 };
 
 // ============================================================================
@@ -97,7 +98,7 @@ struct UndoEntry {
 // ============================================================================
 
 struct TokenSpan {
-    int start, end;  // [start, end) column range
+    int start, end; // [start, end) column range
     Decorator deco;
 };
 
@@ -115,9 +116,16 @@ struct SyntaxDefinition {
 class SyntaxHighlighter {
 public:
     void SetLanguage(const std::string& filename);
-    const std::vector<TokenSpan>& Highlight(int line_idx, const std::string& line) const;
-    void InvalidateLine(int line_idx) { cache_.erase(line_idx); dirty_.erase(line_idx); }
-    void InvalidateAll() const { cache_.clear(); dirty_.clear(); }
+    const std::vector<TokenSpan>&
+    Highlight(int line_idx, const std::string& line) const;
+    void InvalidateLine(int line_idx) {
+        cache_.erase(line_idx);
+        dirty_.erase(line_idx);
+    }
+    void InvalidateAll() const {
+        cache_.clear();
+        dirty_.clear();
+    }
     bool HasLanguage() const { return lang_ != nullptr; }
 
 private:
@@ -129,28 +137,37 @@ private:
 
 // Built-in language definitions (rules compiled at startup)
 static std::vector<SyntaxDefinition> kLanguages = {
-    {"Python", {".py", ".pyw"}, {
-        {R"(#[^\n]*)",                                 nothing},  // 0: comments (gray)
-        {R"str("[^"]*"|'[^']*')str",                     nothing},  // 1: strings (green)
-        {R"(\b(def|class|return|if|elif|else|for|while|import|from|as|try|except|finally|with|yield|lambda|pass|break|continue|and|or|not|in|is|True|False|None|async|await|raise|assert|del|global|nonlocal)\b)", nothing},  // 2: keywords (blue)
-        {R"(\b[0-9]+(\.[0-9]+)?\b)",                    nothing},  // 3: numbers (red)
-        {R"(@[a-zA-Z_][a-zA-Z0-9_]*)",                   nothing},  // 4: decorators (green)
-    }},
-    {"C/C++", {".c", ".h", ".cpp", ".hpp", ".cc", ".cxx"}, {
-        {R"(//[^\n]*)",                                  nothing},  // 0: comments
-        {R"str("[^"]*")str",                           nothing},  // 1: strings
-        {R"(\b(auto|break|case|const|continue|default|do|else|enum|extern|for|goto|if|register|return|signed|sizeof|static|struct|switch|typedef|union|unsigned|void|volatile|while|class|namespace|template|typename|public|private|protected|virtual|override|final|new|delete|try|catch|throw|using|operator|bool|char|short|int|long|float|double|true|false|nullptr|include|define|ifdef|ifndef|endif|pragma)\b)", nothing},  // 2: keywords
-        {R"(\b[0-9]+(\.[0-9]+)?(f|L|ll|u)?\b)",        nothing},  // 3: numbers
-        {R"(#.*)",                                       nothing},  // 4: preprocessor
-    }},
-    {"Org-Mode", {".org"}, {
-        {R"(^\*+\s.*)",                                nothing},  // headers
-        {R"(\*[^*]+\*)",                                nothing},  // bold
-        {R"(/[^/]+/)",                                   nothing},  // italic
-        {R"(:[a-zA-Z0-9_]+:)",                          nothing},  // tags
-        {R"(\bTODO\b)",                                 nothing},
-        {R"(\bDONE\b)",                                 nothing},
-    }},
+    {"Python",
+     {".py", ".pyw"},
+     {
+         {R"(#[^\n]*)", nothing},               // 0: comments (gray)
+         {R"str("[^"]*"|'[^']*')str", nothing}, // 1: strings (green)
+         {R"(\b(def|class|return|if|elif|else|for|while|import|from|as|try|except|finally|with|yield|lambda|pass|break|continue|and|or|not|in|is|True|False|None|async|await|raise|assert|del|global|nonlocal)\b)",
+          nothing},                             // 2: keywords (blue)
+         {R"(\b[0-9]+(\.[0-9]+)?\b)", nothing}, // 3: numbers (red)
+         {R"(@[a-zA-Z_][a-zA-Z0-9_]*)",
+          nothing}, // 4: decorators (green)
+     }},
+    {"C/C++",
+     {".c", ".h", ".cpp", ".hpp", ".cc", ".cxx"},
+     {
+         {R"(//[^\n]*)", nothing},      // 0: comments
+         {R"str("[^"]*")str", nothing}, // 1: strings
+         {R"(\b(auto|break|case|const|continue|default|do|else|enum|extern|for|goto|if|register|return|signed|sizeof|static|struct|switch|typedef|union|unsigned|void|volatile|while|class|namespace|template|typename|public|private|protected|virtual|override|final|new|delete|try|catch|throw|using|operator|bool|char|short|int|long|float|double|true|false|nullptr|include|define|ifdef|ifndef|endif|pragma)\b)",
+          nothing}, // 2: keywords
+         {R"(\b[0-9]+(\.[0-9]+)?(f|L|ll|u)?\b)", nothing}, // 3: numbers
+         {R"(#.*)", nothing}, // 4: preprocessor
+     }},
+    {"Org-Mode",
+     {".org"},
+     {
+         {R"(^\*+\s.*)", nothing},        // headers
+         {R"(\*[^*]+\*)", nothing},       // bold
+         {R"(/[^/]+/)", nothing},         // italic
+         {R"(:[a-zA-Z0-9_]+:)", nothing}, // tags
+         {R"(\bTODO\b)", nothing},
+         {R"(\bDONE\b)", nothing},
+     }},
 };
 
 struct EditorView {
@@ -170,7 +187,8 @@ struct EditorView {
 
     // ---- Per-view undo ----
     std::vector<UndoEntry> undo_stack;
-    int undo_index = -1;  // points to last applied entry; -1 = no undo available
+    int undo_index =
+        -1; // points to last applied entry; -1 = no undo available
     bool insert_undo_pending = false;
     int insert_undo_start_row = 0;
     int insert_undo_start_col = 0;
@@ -181,7 +199,7 @@ struct EditorView {
     std::string search_pattern;
     std::string last_search;
     bool search_highlight = true;
-    std::vector<std::pair<int,int>> search_matches;
+    std::vector<std::pair<int, int>> search_matches;
     int current_match_idx = -1;
 
     // ---- Syntax highlighting ----
@@ -198,7 +216,8 @@ void SyntaxHighlighter::SetLanguage(const std::string& filename) {
     dirty_.clear();
     // Find extension
     auto dot = filename.rfind('.');
-    if (dot == std::string::npos) return;
+    if (dot == std::string::npos)
+        return;
     std::string ext = filename.substr(dot);
     for (auto& def : kLanguages) {
         for (auto& e : def.extensions) {
@@ -212,27 +231,35 @@ void SyntaxHighlighter::SetLanguage(const std::string& filename) {
 }
 
 void SyntaxHighlighter::ParseRules() {
-    if (!lang_) return;
+    if (!lang_)
+        return;
     auto& rules = const_cast<std::vector<SyntaxRule>&>(lang_->rules);
-    // Wombat color scheme — order: comments, strings, keywords, numbers, misc
+    // Wombat color scheme — order: comments, strings, keywords,
+    // numbers, misc
     static const Decorator kWombat[] = {
-        color(Color::RGB(0x99, 0x96, 0x8b)),  // 0: comments (gray)
-        color(Color::RGB(0x95, 0xe4, 0x54)),  // 1: strings (green)
-        color(Color::RGB(0x8a, 0xc6, 0xf2)),  // 2: keywords (light blue)
-        color(Color::RGB(0xe5, 0x78, 0x6d)),  // 3: numbers (red-orange)
-        color(Color::RGB(0xca, 0xe6, 0x82)),  // 4: functions/decorators (light green)
-        color(Color::RGB(0x8a, 0xc6, 0xf2)),  // 5: misc (light blue)
-        color(Color::RGB(0xe5, 0x78, 0x6d)),  // 6: misc (red-orange)
+        color(Color::RGB(0x99, 0x96, 0x8b)), // 0: comments (gray)
+        color(Color::RGB(0x95, 0xe4, 0x54)), // 1: strings (green)
+        color(Color::RGB(0x8a, 0xc6, 0xf2)), // 2: keywords (light blue)
+        color(Color::RGB(0xe5, 0x78, 0x6d)), // 3: numbers (red-orange)
+        color(Color::RGB(
+            0xca, 0xe6, 0x82)), // 4: functions/decorators (light green)
+        color(Color::RGB(0x8a, 0xc6, 0xf2)), // 5: misc (light blue)
+        color(Color::RGB(0xe5, 0x78, 0x6d)), // 6: misc (red-orange)
     };
     for (size_t i = 0; i < rules.size(); ++i)
-        rules[i].deco = kWombat[std::min(i, sizeof(kWombat)/sizeof(kWombat[0]) - 1)];
+        rules[i].deco = kWombat[std::min(
+            i, sizeof(kWombat) / sizeof(kWombat[0]) - 1)];
 }
 
-const std::vector<TokenSpan>& SyntaxHighlighter::Highlight(int line_idx, const std::string& line) const {
-    // Simple caching: reuse spans from previous frame, clear when scrolling
+const std::vector<TokenSpan>&
+SyntaxHighlighter::Highlight(int line_idx,
+                             const std::string& line) const {
+    // Simple caching: reuse spans from previous frame, clear when
+    // scrolling
     auto& spans = cache_[line_idx];
     spans.clear();
-    if (!lang_ || line.empty()) return spans;
+    if (!lang_ || line.empty())
+        return spans;
 
     for (auto& rule : lang_->rules) {
         try {
@@ -246,7 +273,8 @@ const std::vector<TokenSpan>& SyntaxHighlighter::Highlight(int line_idx, const s
                 ts.deco = rule.deco;
                 spans.push_back(ts);
             }
-        } catch (const std::regex_error&) {}
+        } catch (const std::regex_error&) {
+        }
     }
     return spans;
 }
@@ -265,7 +293,8 @@ private:
     // ---- Views (split support) ----
     std::vector<EditorView> views_;
     int active_view_ = 0;
-    bool split_horizontal_ = true; // true=horizontal(top/bottom), false=vertical(left/right)
+    bool split_horizontal_ =
+        true; // true=horizontal(top/bottom), false=vertical(left/right)
 
     EditorView& active() { return views_[active_view_]; }
     const EditorView& active() const { return views_[active_view_]; }
@@ -274,7 +303,8 @@ private:
 
     // ---- Mode ----
     Mode mode_ = Mode::NORMAL;
-    Mode prev_mode_ = Mode::NORMAL; // for returning from operator-pending
+    Mode prev_mode_ =
+        Mode::NORMAL; // for returning from operator-pending
 
     // ---- Command line ----
     std::string command_line_;
@@ -285,12 +315,13 @@ private:
 
     // ---- Operator pending ----
     OperatorType pending_op_ = OperatorType::NONE;
-    int pending_count_ = 0;   // 0 means "1" (no explicit count)
-    int motion_count_ = 0;    // count preceding a motion while in op-pending
+    int pending_count_ = 0; // 0 means "1" (no explicit count)
+    int motion_count_ =
+        0; // count preceding a motion while in op-pending
     bool operator_applied_ = false;
 
     // ---- Count accumulator ----
-    int count_acc_ = 0;       // accumulates digits before operator/motion
+    int count_acc_ = 0; // accumulates digits before operator/motion
 
     // ---- Dot repeat ----
     LastChange last_change_;
@@ -309,10 +340,11 @@ private:
 
     // ---- Key mappings ----
     struct KeyMapping {
-        std::vector<std::string> from_seq; // sequence of Event strings to match
-        std::vector<std::string> to_seq;   // sequence to emit
-        std::string from_str;  // concatenated for display
-        std::string to_str;    // concatenated for display
+        std::vector<std::string>
+            from_seq; // sequence of Event strings to match
+        std::vector<std::string> to_seq; // sequence to emit
+        std::string from_str;            // concatenated for display
+        std::string to_str;              // concatenated for display
     };
     std::vector<KeyMapping> key_mappings_;
 
@@ -336,7 +368,8 @@ private:
     bool ctrl_w_pending_ = false;
     bool z_pending_ = false;
     bool Z_pending_ = false;
-    int  ctrl_o_pending_ = 0; // 0=off, 1=enter normal next, 2=return to insert after cmd
+    int ctrl_o_pending_ =
+        0; // 0=off, 1=enter normal next, 2=return to insert after cmd
 
     // ---- Visual block change tracking ----
     bool block_change_pending_ = false;
@@ -362,11 +395,16 @@ private:
     // Editing primitives
     // ================================================================
     void InsertChar(EditorView& view, char c);
-    void DeleteChar(EditorView& view);       // x
+    void DeleteChar(EditorView& view); // x
     void DeleteRange(EditorView& view, const Range& r);
-    std::vector<std::string> ExtractRange(EditorView& view, const Range& r);
-    void PutAfter(EditorView& view, const std::vector<std::string>& text, bool linewise, bool blockwise);
-    void PutBefore(EditorView& view, const std::vector<std::string>& text, bool linewise, bool blockwise);
+    std::vector<std::string> ExtractRange(EditorView& view,
+                                          const Range& r);
+    void PutAfter(EditorView& view,
+                  const std::vector<std::string>& text, bool linewise,
+                  bool blockwise);
+    void PutBefore(EditorView& view,
+                   const std::vector<std::string>& text, bool linewise,
+                   bool blockwise);
     void IndentRange(EditorView& view, const Range& r, bool increase);
     void ToggleCaseRange(EditorView& view, const Range& r);
 
@@ -388,26 +426,39 @@ private:
     // ================================================================
     // Motion functions – return the cursor position after motion
     // ================================================================
-    struct CursorPos { int row, col; };
+    struct CursorPos {
+        int row, col;
+    };
     CursorPos MotionLeft(const EditorView& v, int count = 1) const;
     CursorPos MotionRight(const EditorView& v, int count = 1) const;
     CursorPos MotionDown(const EditorView& v, int count = 1) const;
     CursorPos MotionUp(const EditorView& v, int count = 1) const;
-    CursorPos MotionWordForward(const EditorView& v, int count = 1) const;
-    CursorPos MotionWordBackward(const EditorView& v, int count = 1) const;
-    CursorPos MotionWordEndForward(const EditorView& v, int count = 1) const;
-    CursorPos MotionBigWordForward(const EditorView& v, int count = 1) const;
-    CursorPos MotionBigWordBackward(const EditorView& v, int count = 1) const;
-    CursorPos MotionBigWordEndForward(const EditorView& v, int count = 1) const;
+    CursorPos MotionWordForward(const EditorView& v,
+                                int count = 1) const;
+    CursorPos MotionWordBackward(const EditorView& v,
+                                 int count = 1) const;
+    CursorPos MotionWordEndForward(const EditorView& v,
+                                   int count = 1) const;
+    CursorPos MotionBigWordForward(const EditorView& v,
+                                   int count = 1) const;
+    CursorPos MotionBigWordBackward(const EditorView& v,
+                                    int count = 1) const;
+    CursorPos MotionBigWordEndForward(const EditorView& v,
+                                      int count = 1) const;
     CursorPos MotionLineStart(const EditorView& v) const;
     CursorPos MotionLineEnd(const EditorView& v) const;
     CursorPos MotionFirstNonBlank(const EditorView& v) const;
     CursorPos MotionFileStart(const EditorView& v) const;
     CursorPos MotionFileEnd(const EditorView& v) const;
-    CursorPos MotionFindForward(const EditorView& v, char c, int count = 1, bool till = false) const;
-    CursorPos MotionFindBackward(const EditorView& v, char c, int count = 1, bool till = false) const;
-    CursorPos MotionParagraphForward(const EditorView& v, int count = 1) const;
-    CursorPos MotionParagraphBackward(const EditorView& v, int count = 1) const;
+    CursorPos MotionFindForward(const EditorView& v, char c,
+                                int count = 1, bool till = false) const;
+    CursorPos MotionFindBackward(const EditorView& v, char c,
+                                 int count = 1,
+                                 bool till = false) const;
+    CursorPos MotionParagraphForward(const EditorView& v,
+                                     int count = 1) const;
+    CursorPos MotionParagraphBackward(const EditorView& v,
+                                      int count = 1) const;
     CursorPos MotionPercentMatch(const EditorView& v) const;
 
     // ================================================================
@@ -418,7 +469,8 @@ private:
     Range TextObjectInnerBigWord(const EditorView& v) const;
     Range TextObjectABigWord(const EditorView& v) const;
     Range TextObjectQuoted(const EditorView& v, char quote) const;
-    Range TextObjectBlock(const EditorView& v, char open, char close) const;
+    Range TextObjectBlock(const EditorView& v, char open,
+                          char close) const;
     Range TextObjectInnerParagraph(const EditorView& v) const;
     Range TextObjectAParagraph(const EditorView& v) const;
     TextObjectType ParseTextObject(char c, bool inner) const;
@@ -426,7 +478,8 @@ private:
     // ================================================================
     // Operator execution
     // ================================================================
-    void ExecuteOperator(EditorView& view, OperatorType op, const Range& r);
+    void ExecuteOperator(EditorView& view, OperatorType op,
+                         const Range& r);
     Range GetRangeForTextObject(EditorView& view, TextObjectType tobj);
     bool ApplyOperatorMotion(EditorView& view, const CursorPos& target);
 
@@ -533,19 +586,29 @@ int ViEditor::EffectiveCount() const {
 }
 
 std::string ViEditor::EventToString(const Event& e) const {
-    if (e == Event::Escape) return "<Esc>";
-    if (e == Event::Return) return "<CR>";
-    if (e == Event::Tab) return "<Tab>";
-    if (e == Event::Backspace) return "<BS>";
-    if (e == Event::Delete) return "<Del>";
-    if (e == Event::ArrowUp) return "<Up>";
-    if (e == Event::ArrowDown) return "<Down>";
-    if (e == Event::ArrowLeft) return "<Left>";
-    if (e == Event::ArrowRight) return "<Right>";
+    if (e == Event::Escape)
+        return "<Esc>";
+    if (e == Event::Return)
+        return "<CR>";
+    if (e == Event::Tab)
+        return "<Tab>";
+    if (e == Event::Backspace)
+        return "<BS>";
+    if (e == Event::Delete)
+        return "<Del>";
+    if (e == Event::ArrowUp)
+        return "<Up>";
+    if (e == Event::ArrowDown)
+        return "<Down>";
+    if (e == Event::ArrowLeft)
+        return "<Left>";
+    if (e == Event::ArrowRight)
+        return "<Right>";
     if (e.is_character()) {
         std::string c = e.character();
         if (c.size() == 1) {
-            if (c[0] < 32) return std::string("C-") + char(c[0] + 64);
+            if (c[0] < 32)
+                return std::string("C-") + char(c[0] + 64);
             return c;
         }
     }
@@ -623,7 +686,8 @@ void ViEditor::UpdateScroll(EditorView& view) {
     if (split_horizontal_ && views_.size() > 1) {
         int avail = Terminal::Size().dimy - 3;
         int sep_count = static_cast<int>(views_.size()) - 1;
-        visible_rows = (avail - sep_count) / static_cast<int>(views_.size());
+        visible_rows =
+            (avail - sep_count) / static_cast<int>(views_.size());
     }
 
     if (view.cursor_row < view.top_row)
@@ -632,13 +696,16 @@ void ViEditor::UpdateScroll(EditorView& view) {
         view.top_row = view.cursor_row - visible_rows + 1;
     if (view.top_row < 0)
         view.top_row = 0;
-    int max_top = std::max(0, static_cast<int>(view.lines.size()) - visible_rows);
+    int max_top =
+        std::max(0, static_cast<int>(view.lines.size()) - visible_rows);
     if (view.top_row > max_top)
         view.top_row = max_top;
 
     // Horizontal scrolling: keep cursor visible within the editor area
-    int visible_cols = Terminal::Size().dimx; // generous, works for splits too
-    if (visible_cols < 20) visible_cols = 20;      // minimum reasonable width
+    int visible_cols =
+        Terminal::Size().dimx; // generous, works for splits too
+    if (visible_cols < 20)
+        visible_cols = 20; // minimum reasonable width
     if (view.cursor_col < view.left_col)
         view.left_col = view.cursor_col;
     else if (view.cursor_col >= view.left_col + visible_cols)
@@ -650,7 +717,8 @@ void ViEditor::UpdateScroll(EditorView& view) {
 void ViEditor::MoveCursor(EditorView& view, int drow, int dcol) {
     int new_row = view.cursor_row + drow;
     int new_col = view.cursor_col + dcol;
-    new_row = std::clamp(new_row, 0, static_cast<int>(view.lines.size()) - 1);
+    new_row =
+        std::clamp(new_row, 0, static_cast<int>(view.lines.size()) - 1);
     const std::string& line = view.lines[new_row];
     new_col = std::clamp(new_col, 0, static_cast<int>(line.size()));
     view.cursor_row = new_row;
@@ -673,18 +741,23 @@ void ViEditor::InsertChar(EditorView& view, char c) {
 
 void ViEditor::DeleteChar(EditorView& view) {
     std::string& line = view.lines[view.cursor_row];
-    if (!line.empty() && view.cursor_col < static_cast<int>(line.size())) {
+    if (!line.empty() &&
+        view.cursor_col < static_cast<int>(line.size())) {
         line.erase(view.cursor_col, 1);
         view.modified = true;
-    } else if (!line.empty() && view.cursor_col == static_cast<int>(line.size())) {
+    } else if (!line.empty() &&
+               view.cursor_col == static_cast<int>(line.size())) {
         // Join with next line
         if (view.cursor_row + 1 < static_cast<int>(view.lines.size())) {
             line += view.lines[view.cursor_row + 1];
-            view.lines.erase(view.lines.begin() + view.cursor_row + 1, view.lines.begin() + view.cursor_row + 1 + 1);
+            view.lines.erase(view.lines.begin() + view.cursor_row + 1,
+                             view.lines.begin() + view.cursor_row + 1 +
+                                 1);
             view.modified = true;
         }
     } else if (line.empty() && view.lines.size() > 1) {
-        view.lines.erase(view.lines.begin() + view.cursor_row, view.lines.begin() + view.cursor_row + 1);
+        view.lines.erase(view.lines.begin() + view.cursor_row,
+                         view.lines.begin() + view.cursor_row + 1);
         if (view.cursor_row >= static_cast<int>(view.lines.size()))
             view.cursor_row = static_cast<int>(view.lines.size()) - 1;
         view.cursor_col = 0;
@@ -701,18 +774,22 @@ void ViEditor::DeleteRange(EditorView& view, const Range& r) {
     } else {
         int first_row = std::min(r.start_row, r.end_row);
         int last_row = std::max(r.start_row, r.end_row);
-        int first_col = (r.start_row <= r.end_row) ? r.start_col : r.end_col;
-        int last_col = (r.start_row <= r.end_row) ? r.end_col : r.start_col;
+        int first_col =
+            (r.start_row <= r.end_row) ? r.start_col : r.end_col;
+        int last_col =
+            (r.start_row <= r.end_row) ? r.end_col : r.start_col;
 
         view.lines[first_row].erase(first_col);
         view.lines[first_row] += view.lines[last_row].substr(last_col);
         for (int i = last_row; i > first_row; --i)
-            view.lines.erase(view.lines.begin() + i, view.lines.begin() + i + 1);
+            view.lines.erase(view.lines.begin() + i,
+                             view.lines.begin() + i + 1);
     }
     view.modified = true;
 }
 
-std::vector<std::string> ViEditor::ExtractRange(EditorView& view, const Range& r) {
+std::vector<std::string> ViEditor::ExtractRange(EditorView& view,
+                                                const Range& r) {
     std::vector<std::string> result;
     int first_row = std::min(r.start_row, r.end_row);
     int last_row = std::max(r.start_row, r.end_row);
@@ -720,26 +797,33 @@ std::vector<std::string> ViEditor::ExtractRange(EditorView& view, const Range& r
     int last_col = std::max(r.start_col, r.end_col);
 
     if (first_row == last_row) {
-        result.push_back(view.lines[first_row].substr(first_col, last_col - first_col));
+        result.push_back(view.lines[first_row].substr(
+            first_col, last_col - first_col));
     } else {
         // Determine direction
         if (r.start_row <= r.end_row) {
-            result.push_back(view.lines[r.start_row].substr(r.start_col));
+            result.push_back(
+                view.lines[r.start_row].substr(r.start_col));
             for (int i = r.start_row + 1; i < r.end_row; ++i)
                 result.push_back(view.lines[i]);
-            result.push_back(view.lines[r.end_row].substr(0, r.end_col));
+            result.push_back(
+                view.lines[r.end_row].substr(0, r.end_col));
         } else {
             result.push_back(view.lines[r.end_row].substr(r.end_col));
             for (int i = r.end_row + 1; i < r.start_row; ++i)
                 result.push_back(view.lines[i]);
-            result.push_back(view.lines[r.start_row].substr(0, r.start_col));
+            result.push_back(
+                view.lines[r.start_row].substr(0, r.start_col));
         }
     }
     return result;
 }
 
-void ViEditor::PutAfter(EditorView& view, const std::vector<std::string>& text, bool linewise, bool /*blockwise*/) {
-    if (text.empty()) return;
+void ViEditor::PutAfter(EditorView& view,
+                        const std::vector<std::string>& text,
+                        bool linewise, bool /*blockwise*/) {
+    if (text.empty())
+        return;
     PushUndo(view, view.cursor_row, static_cast<int>(text.size()) + 1);
     if (linewise) {
         int ins_row = view.cursor_row + 1;
@@ -747,14 +831,17 @@ void ViEditor::PutAfter(EditorView& view, const std::vector<std::string>& text, 
             view.lines.insert(view.lines.begin() + ins_row, t);
             ++ins_row;
         }
-        view.cursor_row = std::min(ins_row - 1, static_cast<int>(view.lines.size()) - 1);
+        view.cursor_row = std::min(
+            ins_row - 1, static_cast<int>(view.lines.size()) - 1);
         view.cursor_col = 0;
     } else {
         std::string& line = view.lines[view.cursor_row];
         if (text.size() == 1) {
-            int ins = std::min(view.cursor_col + 1, static_cast<int>(line.size()));
+            int ins = std::min(view.cursor_col + 1,
+                               static_cast<int>(line.size()));
             line.insert(ins, text[0]);
-            view.cursor_col = ins + static_cast<int>(text[0].size()) - 1;
+            view.cursor_col =
+                ins + static_cast<int>(text[0].size()) - 1;
         } else {
             // Multi-line paste
             std::string after = line.substr(view.cursor_col + 1);
@@ -762,7 +849,8 @@ void ViEditor::PutAfter(EditorView& view, const std::vector<std::string>& text, 
             line += text[0];
             int ins_row = view.cursor_row + 1;
             for (size_t i = 1; i < text.size() - 1; ++i) {
-                view.lines.insert(view.lines.begin() + ins_row, text[i]);
+                view.lines.insert(view.lines.begin() + ins_row,
+                                  text[i]);
                 ++ins_row;
             }
             if (text.size() > 1) {
@@ -782,8 +870,11 @@ void ViEditor::PutAfter(EditorView& view, const std::vector<std::string>& text, 
     UpdateScroll(view);
 }
 
-void ViEditor::PutBefore(EditorView& view, const std::vector<std::string>& text, bool linewise, bool /*blockwise*/) {
-    if (text.empty()) return;
+void ViEditor::PutBefore(EditorView& view,
+                         const std::vector<std::string>& text,
+                         bool linewise, bool /*blockwise*/) {
+    if (text.empty())
+        return;
     PushUndo(view, view.cursor_row, static_cast<int>(text.size()) + 1);
     if (linewise) {
         int ins_row = view.cursor_row;
@@ -804,11 +895,13 @@ void ViEditor::PutBefore(EditorView& view, const std::vector<std::string>& text,
             line += text[0];
             int ins_row = view.cursor_row + 1;
             for (size_t i = 1; i < text.size() - 1; ++i) {
-                view.lines.insert(view.lines.begin() + ins_row, text[i]);
+                view.lines.insert(view.lines.begin() + ins_row,
+                                  text[i]);
                 ++ins_row;
             }
             if (text.size() > 1) {
-                view.lines.insert(view.lines.begin() + ins_row, text.back() + after);
+                view.lines.insert(view.lines.begin() + ins_row,
+                                  text.back() + after);
             }
             view.cursor_row = ins_row;
             view.cursor_col = text.back().size() - 1;
@@ -818,17 +911,21 @@ void ViEditor::PutBefore(EditorView& view, const std::vector<std::string>& text,
     UpdateScroll(view);
 }
 
-void ViEditor::IndentRange(EditorView& view, const Range& r, bool increase) {
+void ViEditor::IndentRange(EditorView& view, const Range& r,
+                           bool increase) {
     int first = std::min(r.start_row, r.end_row);
     int last = std::max(r.start_row, r.end_row);
-    for (int i = first; i <= last && i < static_cast<int>(view.lines.size()); ++i) {
+    for (int i = first;
+         i <= last && i < static_cast<int>(view.lines.size()); ++i) {
         if (!view.lines[i].empty()) {
             if (increase) {
                 view.lines[i].insert(0, "  ");
             } else {
-                if (view.lines[i].size() >= 2 && view.lines[i][0] == ' ' && view.lines[i][1] == ' ')
+                if (view.lines[i].size() >= 2 &&
+                    view.lines[i][0] == ' ' && view.lines[i][1] == ' ')
                     view.lines[i].erase(0, 2);
-                else if (!view.lines[i].empty() && view.lines[i][0] == ' ')
+                else if (!view.lines[i].empty() &&
+                         view.lines[i][0] == ' ')
                     view.lines[i].erase(0, 1);
             }
         }
@@ -839,11 +936,14 @@ void ViEditor::IndentRange(EditorView& view, const Range& r, bool increase) {
 void ViEditor::ToggleCaseRange(EditorView& view, const Range& r) {
     if (r.start_row == r.end_row) {
         std::string& line = view.lines[r.start_row];
-        for (int i = r.start_col; i < r.end_col && i < static_cast<int>(line.size()); ++i) {
+        for (int i = r.start_col;
+             i < r.end_col && i < static_cast<int>(line.size()); ++i) {
             if (std::islower(static_cast<unsigned char>(line[i])))
-                line[i] = static_cast<char>(std::toupper(static_cast<unsigned char>(line[i])));
+                line[i] = static_cast<char>(
+                    std::toupper(static_cast<unsigned char>(line[i])));
             else if (std::isupper(static_cast<unsigned char>(line[i])))
-                line[i] = static_cast<char>(std::tolower(static_cast<unsigned char>(line[i])));
+                line[i] = static_cast<char>(
+                    std::tolower(static_cast<unsigned char>(line[i])));
         }
     }
     view.modified = true;
@@ -853,18 +953,23 @@ void ViEditor::ToggleCaseRange(EditorView& view, const Range& r) {
 // Undo
 // ============================================================================
 
-void ViEditor::PushUndo(EditorView& view, int first_line, int line_count) {
-    // Snapshots lines [first_line, first_line + line_count) before the change.
-    // The change will replace these with new content; undo restores the old content.
-    if (line_count <= 0) return;
+void ViEditor::PushUndo(EditorView& view, int first_line,
+                        int line_count) {
+    // Snapshots lines [first_line, first_line + line_count) before the
+    // change. The change will replace these with new content; undo
+    // restores the old content.
+    if (line_count <= 0)
+        return;
 
     UndoEntry entry;
     entry.cursor_row = view.cursor_row;
     entry.cursor_col = view.cursor_col;
     entry.first_line = first_line;
-    entry.new_line_count = 0; // will be set on undo by examining current state, or we compute it now
+    entry.new_line_count = 0; // will be set on undo by examining
+                              // current state, or we compute it now
 
-    int end = std::min(first_line + line_count, static_cast<int>(view.lines.size()));
+    int end = std::min(first_line + line_count,
+                       static_cast<int>(view.lines.size()));
     for (int i = first_line; i < end; ++i)
         entry.old_lines.push_back(view.lines[i]);
 
@@ -877,11 +982,13 @@ void ViEditor::PushUndo(EditorView& view, int first_line, int line_count) {
 }
 
 void ViEditor::FinalizeInsertUndo(EditorView& view) {
-    if (!view.insert_undo_pending) return;
+    if (!view.insert_undo_pending)
+        return;
     view.insert_undo_pending = false;
 
-    // The change covers from view.insert_undo_start_row through the current cursor row.
-    // All lines between them (inclusive) were potentially created/modified.
+    // The change covers from view.insert_undo_start_row through the
+    // current cursor row. All lines between them (inclusive) were
+    // potentially created/modified.
     int last_line = view.cursor_row;
     int first_line = view.insert_undo_start_row;
 
@@ -892,19 +999,25 @@ void ViEditor::FinalizeInsertUndo(EditorView& view) {
     entry.old_lines = std::move(view.insert_undo_old_lines);
     entry.new_line_count = (last_line - first_line + 1);
 
-    // If nothing changed (entered and left insert without typing), don't record
+    // If nothing changed (entered and left insert without typing),
+    // don't record
     bool changed = false;
-    if (entry.old_lines.size() != static_cast<size_t>(entry.new_line_count))
+    if (entry.old_lines.size() !=
+        static_cast<size_t>(entry.new_line_count))
         changed = true;
     else {
-        for (int i = 0; i < entry.new_line_count && first_line + i < static_cast<int>(view.lines.size()); ++i) {
+        for (int i = 0;
+             i < entry.new_line_count &&
+             first_line + i < static_cast<int>(view.lines.size());
+             ++i) {
             if (entry.old_lines[i] != view.lines[first_line + i]) {
                 changed = true;
                 break;
             }
         }
     }
-    if (!changed) return;
+    if (!changed)
+        return;
 
     if (view.undo_index + 1 < static_cast<int>(view.undo_stack.size()))
         view.undo_stack.resize(view.undo_index + 1);
@@ -924,30 +1037,36 @@ void ViEditor::BeginInsertUndo(EditorView& view) {
 }
 
 void ViEditor::Undo(EditorView& view) {
-    if (view.undo_index < 0 || view.undo_index >= static_cast<int>(view.undo_stack.size())) {
+    if (view.undo_index < 0 ||
+        view.undo_index >= static_cast<int>(view.undo_stack.size())) {
         SetStatus("Already at oldest change");
         return;
     }
 
     UndoEntry& entry = view.undo_stack[view.undo_index];
 
-    // Compute how many lines the change produced (current state from first_line)
+    // Compute how many lines the change produced (current state from
+    // first_line)
     int current_count = 0;
     if (entry.new_line_count > 0) {
         current_count = entry.new_line_count;
     } else {
-        // For entries pushed via PushUndo (non-insert changes), we don't know new_line_count.
-        // We need to infer it.  The entry was pushed BEFORE the change.
-        // After the change, the lines from first_line onward were modified.
-        // We can approximate: compare old_lines size with what's there now.
-        // Simpler fix: compute new_line_count at push time in PushUndo by deferring.
-        // For now, use a heuristic: replace up to old_lines.size() lines.
+        // For entries pushed via PushUndo (non-insert changes), we
+        // don't know new_line_count. We need to infer it.  The entry
+        // was pushed BEFORE the change. After the change, the lines
+        // from first_line onward were modified. We can approximate:
+        // compare old_lines size with what's there now. Simpler fix:
+        // compute new_line_count at push time in PushUndo by deferring.
+        // For now, use a heuristic: replace up to old_lines.size()
+        // lines.
         current_count = static_cast<int>(entry.old_lines.size());
     }
 
-    // Save current lines as the "new" state (for potential redo in the future)
+    // Save current lines as the "new" state (for potential redo in the
+    // future)
     std::vector<std::string> new_lines;
-    int end_line = std::min(entry.first_line + current_count, static_cast<int>(view.lines.size()));
+    int end_line = std::min(entry.first_line + current_count,
+                            static_cast<int>(view.lines.size()));
     for (int i = entry.first_line; i < end_line; ++i)
         new_lines.push_back(view.lines[i]);
 
@@ -956,23 +1075,31 @@ void ViEditor::Undo(EditorView& view) {
     int old_size = static_cast<int>(entry.old_lines.size());
 
     // Remove current lines
-    if (remove_count > 0 && entry.first_line < static_cast<int>(view.lines.size())) {
-        int actual_remove = std::min(remove_count, static_cast<int>(view.lines.size()) - entry.first_line);
+    if (remove_count > 0 &&
+        entry.first_line < static_cast<int>(view.lines.size())) {
+        int actual_remove =
+            std::min(remove_count, static_cast<int>(view.lines.size()) -
+                                       entry.first_line);
         view.lines.erase(view.lines.begin() + entry.first_line,
-                         view.lines.begin() + entry.first_line + actual_remove);
+                         view.lines.begin() + entry.first_line +
+                             actual_remove);
     }
 
     // Insert old lines
     for (int i = 0; i < old_size; ++i)
-        view.lines.insert(view.lines.begin() + entry.first_line + i, entry.old_lines[i]);
+        view.lines.insert(view.lines.begin() + entry.first_line + i,
+                          entry.old_lines[i]);
 
     // Update entry so re-undo (redo) would work
     entry.old_lines = std::move(new_lines);
     entry.new_line_count = old_size;
 
     // Restore cursor
-    view.cursor_row = std::clamp(entry.cursor_row, 0, static_cast<int>(view.lines.size()) - 1);
-    view.cursor_col = std::clamp(entry.cursor_col, 0, static_cast<int>(view.lines[view.cursor_row].size()));
+    view.cursor_row = std::clamp(
+        entry.cursor_row, 0, static_cast<int>(view.lines.size()) - 1);
+    view.cursor_col = std::clamp(
+        entry.cursor_col, 0,
+        static_cast<int>(view.lines[view.cursor_row].size()));
     view.modified = true;
 
     --view.undo_index;
@@ -982,7 +1109,8 @@ void ViEditor::Undo(EditorView& view) {
 
 void ViEditor::Redo(EditorView& view) {
     int redo_idx = view.undo_index + 1;
-    if (redo_idx < 0 || redo_idx >= static_cast<int>(view.undo_stack.size())) {
+    if (redo_idx < 0 ||
+        redo_idx >= static_cast<int>(view.undo_stack.size())) {
         SetStatus("Already at newest change");
         return;
     }
@@ -990,34 +1118,44 @@ void ViEditor::Redo(EditorView& view) {
     UndoEntry& entry = view.undo_stack[redo_idx];
 
     // Save current lines as the "old" state for potential undo
-    int current_count = entry.new_line_count;  // this was set during undo
+    int current_count =
+        entry.new_line_count; // this was set during undo
     std::vector<std::string> current_lines;
-    int end_line = std::min(entry.first_line + current_count, static_cast<int>(view.lines.size()));
+    int end_line = std::min(entry.first_line + current_count,
+                            static_cast<int>(view.lines.size()));
     for (int i = entry.first_line; i < end_line; ++i)
         current_lines.push_back(view.lines[i]);
 
     // Remove current lines
-    if (current_count > 0 && entry.first_line < static_cast<int>(view.lines.size())) {
-        int actual_remove = std::min(current_count, static_cast<int>(view.lines.size()) - entry.first_line);
+    if (current_count > 0 &&
+        entry.first_line < static_cast<int>(view.lines.size())) {
+        int actual_remove = std::min(
+            current_count,
+            static_cast<int>(view.lines.size()) - entry.first_line);
         view.lines.erase(view.lines.begin() + entry.first_line,
-                         view.lines.begin() + entry.first_line + actual_remove);
+                         view.lines.begin() + entry.first_line +
+                             actual_remove);
     }
 
     // Insert old lines (which are the "forward" state)
     int old_size = static_cast<int>(entry.old_lines.size());
     for (int i = 0; i < old_size; ++i)
-        view.lines.insert(view.lines.begin() + entry.first_line + i, entry.old_lines[i]);
+        view.lines.insert(view.lines.begin() + entry.first_line + i,
+                          entry.old_lines[i]);
 
     // Update entry for potential re-undo
     entry.old_lines = std::move(current_lines);
     entry.new_line_count = old_size;
 
     // Restore cursor
-    view.cursor_row = std::clamp(entry.cursor_row, 0, static_cast<int>(view.lines.size()) - 1);
-    view.cursor_col = std::clamp(entry.cursor_col, 0, static_cast<int>(view.lines[view.cursor_row].size()));
+    view.cursor_row = std::clamp(
+        entry.cursor_row, 0, static_cast<int>(view.lines.size()) - 1);
+    view.cursor_col = std::clamp(
+        entry.cursor_col, 0,
+        static_cast<int>(view.lines[view.cursor_row].size()));
     view.modified = true;
 
-    view.undo_index = redo_idx;  // advance past this entry
+    view.undo_index = redo_idx; // advance past this entry
     UpdateScroll(view);
     SetStatus("Redo");
 }
@@ -1039,7 +1177,9 @@ void ViEditor::ApplyBlockChange(EditorView& view, OperatorType op) {
     if (op == OperatorType::DELETE_OP) {
         // Yank the block text
         view.yank_register.clear();
-        for (int row = sr; row <= er && row < static_cast<int>(view.lines.size()); ++row) {
+        for (int row = sr;
+             row <= er && row < static_cast<int>(view.lines.size());
+             ++row) {
             std::string& line = view.lines[row];
             int cs = std::min(sc, static_cast<int>(line.size()));
             int ce = std::min(ec, static_cast<int>(line.size()));
@@ -1048,18 +1188,23 @@ void ViEditor::ApplyBlockChange(EditorView& view, OperatorType op) {
             else
                 view.yank_register.push_back("");
             if (cs < static_cast<int>(line.size()))
-                line.erase(cs, std::min(ce, static_cast<int>(line.size())) - cs);
+                line.erase(cs,
+                           std::min(ce, static_cast<int>(line.size())) -
+                               cs);
         }
         view.yank_linewise = false;
         view.yank_blockwise = true;
         view.cursor_row = sr;
-        view.cursor_col = std::min(sc, static_cast<int>(view.lines[sr].size()));
+        view.cursor_col =
+            std::min(sc, static_cast<int>(view.lines[sr].size()));
         view.modified = true;
         ExitVisual();
     } else if (op == OperatorType::CHANGE) {
         // Delete the block and prepare for multi-line insert
         view.yank_register.clear();
-        for (int row = sr; row <= er && row < static_cast<int>(view.lines.size()); ++row) {
+        for (int row = sr;
+             row <= er && row < static_cast<int>(view.lines.size());
+             ++row) {
             std::string& line = view.lines[row];
             int cs = std::min(sc, static_cast<int>(line.size()));
             int ce = std::min(ec, static_cast<int>(line.size()));
@@ -1087,7 +1232,8 @@ void ViEditor::ApplyBlockChange(EditorView& view, OperatorType op) {
 }
 
 void ViEditor::FinalizeBlockChange(EditorView& view) {
-    if (!block_change_pending_) return;
+    if (!block_change_pending_)
+        return;
     block_change_pending_ = false;
 
     int sr = block_change_start_row_;
@@ -1099,7 +1245,9 @@ void ViEditor::FinalizeBlockChange(EditorView& view) {
     std::string inserted = first_line.substr(sc);
 
     // Replicate to all other lines in the block
-    for (int row = sr + 1; row <= er && row < static_cast<int>(view.lines.size()); ++row) {
+    for (int row = sr + 1;
+         row <= er && row < static_cast<int>(view.lines.size());
+         ++row) {
         std::string& line = view.lines[row];
         if (sc <= static_cast<int>(line.size()))
             line.insert(sc, inserted);
@@ -1113,56 +1261,79 @@ void ViEditor::FinalizeBlockChange(EditorView& view) {
 // Motion functions
 // ============================================================================
 
-ViEditor::CursorPos ViEditor::MotionLeft(const EditorView& v, int count) const {
+ViEditor::CursorPos ViEditor::MotionLeft(const EditorView& v,
+                                         int count) const {
     int col = v.cursor_col;
     int row = v.cursor_row;
     for (int i = 0; i < count && (row > 0 || col > 0); ++i) {
-        if (col > 0) --col;
-        else if (row > 0) { --row; col = static_cast<int>(v.lines[row].size()); }
+        if (col > 0)
+            --col;
+        else if (row > 0) {
+            --row;
+            col = static_cast<int>(v.lines[row].size());
+        }
     }
     return {row, col};
 }
 
-ViEditor::CursorPos ViEditor::MotionRight(const EditorView& v, int count) const {
+ViEditor::CursorPos ViEditor::MotionRight(const EditorView& v,
+                                          int count) const {
     int col = v.cursor_col;
     int row = v.cursor_row;
     int max_row = static_cast<int>(v.lines.size()) - 1;
-    for (int i = 0; i < count && (row < max_row || col < static_cast<int>(v.lines[row].size())); ++i) {
-        if (col < static_cast<int>(v.lines[row].size())) ++col;
-        else if (row < max_row) { ++row; col = 0; }
+    for (int i = 0;
+         i < count &&
+         (row < max_row || col < static_cast<int>(v.lines[row].size()));
+         ++i) {
+        if (col < static_cast<int>(v.lines[row].size()))
+            ++col;
+        else if (row < max_row) {
+            ++row;
+            col = 0;
+        }
     }
     return {row, col};
 }
 
-ViEditor::CursorPos ViEditor::MotionDown(const EditorView& v, int count) const {
-    int row = std::min(v.cursor_row + count, static_cast<int>(v.lines.size()) - 1);
-    int col = std::min(v.cursor_col, static_cast<int>(v.lines[row].size()));
+ViEditor::CursorPos ViEditor::MotionDown(const EditorView& v,
+                                         int count) const {
+    int row = std::min(v.cursor_row + count,
+                       static_cast<int>(v.lines.size()) - 1);
+    int col =
+        std::min(v.cursor_col, static_cast<int>(v.lines[row].size()));
     return {row, col};
 }
 
-ViEditor::CursorPos ViEditor::MotionUp(const EditorView& v, int count) const {
+ViEditor::CursorPos ViEditor::MotionUp(const EditorView& v,
+                                       int count) const {
     int row = std::max(v.cursor_row - count, 0);
-    int col = std::min(v.cursor_col, static_cast<int>(v.lines[row].size()));
+    int col =
+        std::min(v.cursor_col, static_cast<int>(v.lines[row].size()));
     return {row, col};
 }
 
-ViEditor::CursorPos ViEditor::MotionLineStart(const EditorView& v) const {
+ViEditor::CursorPos
+ViEditor::MotionLineStart(const EditorView& v) const {
     return {v.cursor_row, 0};
 }
 
 ViEditor::CursorPos ViEditor::MotionLineEnd(const EditorView& v) const {
-    return {v.cursor_row, static_cast<int>(v.lines[v.cursor_row].size())};
+    return {v.cursor_row,
+            static_cast<int>(v.lines[v.cursor_row].size())};
 }
 
-ViEditor::CursorPos ViEditor::MotionFirstNonBlank(const EditorView& v) const {
+ViEditor::CursorPos
+ViEditor::MotionFirstNonBlank(const EditorView& v) const {
     const auto& line = v.lines[v.cursor_row];
     int col = 0;
-    while (col < static_cast<int>(line.size()) && IsSpaceOrTab(line[col]))
+    while (col < static_cast<int>(line.size()) &&
+           IsSpaceOrTab(line[col]))
         ++col;
     return {v.cursor_row, col};
 }
 
-ViEditor::CursorPos ViEditor::MotionFileStart(const EditorView& /*v*/) const {
+ViEditor::CursorPos
+ViEditor::MotionFileStart(const EditorView& /*v*/) const {
     return {0, 0};
 }
 
@@ -1170,34 +1341,47 @@ ViEditor::CursorPos ViEditor::MotionFileEnd(const EditorView& v) const {
     return {static_cast<int>(v.lines.size()) - 1, 0};
 }
 
-ViEditor::CursorPos ViEditor::MotionWordForward(const EditorView& v, int count) const {
+ViEditor::CursorPos ViEditor::MotionWordForward(const EditorView& v,
+                                                int count) const {
     int row = v.cursor_row;
     int col = v.cursor_col;
     int max_row = static_cast<int>(v.lines.size()) - 1;
 
     for (int c = 0; c < count; ++c) {
         // Skip current word characters
-        while (row <= max_row && col < static_cast<int>(v.lines[row].size()) && IsWordChar(v.lines[row][col]))
+        while (row <= max_row &&
+               col < static_cast<int>(v.lines[row].size()) &&
+               IsWordChar(v.lines[row][col]))
             ++col;
         // Skip non-word non-whitespace
-        while (row <= max_row && col < static_cast<int>(v.lines[row].size()) && !IsWordChar(v.lines[row][col]) && !IsSpaceOrTab(v.lines[row][col]))
+        while (row <= max_row &&
+               col < static_cast<int>(v.lines[row].size()) &&
+               !IsWordChar(v.lines[row][col]) &&
+               !IsSpaceOrTab(v.lines[row][col]))
             ++col;
         // Skip whitespace (but don't cross lines)
-        while (col < static_cast<int>(v.lines[row].size()) && IsSpaceOrTab(v.lines[row][col]))
+        while (col < static_cast<int>(v.lines[row].size()) &&
+               IsSpaceOrTab(v.lines[row][col]))
             ++col;
         // If at end of line, go to next line
-        if (col >= static_cast<int>(v.lines[row].size()) && row < max_row) {
+        if (col >= static_cast<int>(v.lines[row].size()) &&
+            row < max_row) {
             ++row;
             col = 0;
-            while (col < static_cast<int>(v.lines[row].size()) && IsSpaceOrTab(v.lines[row][col]))
+            while (col < static_cast<int>(v.lines[row].size()) &&
+                   IsSpaceOrTab(v.lines[row][col]))
                 ++col;
         }
     }
-    if (row > max_row) { row = max_row; col = static_cast<int>(v.lines[row].size()); }
+    if (row > max_row) {
+        row = max_row;
+        col = static_cast<int>(v.lines[row].size());
+    }
     return {row, col};
 }
 
-ViEditor::CursorPos ViEditor::MotionWordBackward(const EditorView& v, int count) const {
+ViEditor::CursorPos ViEditor::MotionWordBackward(const EditorView& v,
+                                                 int count) const {
     int row = v.cursor_row;
     int col = v.cursor_col;
 
@@ -1207,104 +1391,148 @@ ViEditor::CursorPos ViEditor::MotionWordBackward(const EditorView& v, int count)
             --row;
             col = static_cast<int>(v.lines[row].size());
         }
-        // Step 2: skip whitespace and non-word chars backward to find a word
-        // First skip past any whitespace
+        // Step 2: skip whitespace and non-word chars backward to find a
+        // word First skip past any whitespace
         while (col > 0 && IsSpaceOrTab(v.lines[row][col - 1]))
             --col;
-        // If we landed at column 0 after skipping whitespace, go up a line
+        // If we landed at column 0 after skipping whitespace, go up a
+        // line
         if (col == 0 && row > 0) {
             --row;
             col = static_cast<int>(v.lines[row].size());
             while (col > 0 && IsSpaceOrTab(v.lines[row][col - 1]))
                 --col;
         }
-        // Step 3: if on a non-word char, step back one to get onto a word boundary
+        // Step 3: if on a non-word char, step back one to get onto a
+        // word boundary
         if (col > 0 && !IsWordChar(v.lines[row][col - 1]))
             --col;
         // Step 4: move to start of the word
         while (col > 0 && IsWordChar(v.lines[row][col - 1]))
             --col;
     }
-    if (row < 0) row = 0;
+    if (row < 0)
+        row = 0;
     return {row, col};
 }
 
-ViEditor::CursorPos ViEditor::MotionWordEndForward(const EditorView& v, int count) const {
+ViEditor::CursorPos ViEditor::MotionWordEndForward(const EditorView& v,
+                                                   int count) const {
     int row = v.cursor_row;
     int col = v.cursor_col;
     int max_row = static_cast<int>(v.lines.size()) - 1;
 
     for (int c = 0; c < count; ++c) {
         // If on whitespace, skip to next word char
-        if (col < static_cast<int>(v.lines[row].size()) && IsSpaceOrTab(v.lines[row][col])) {
-            while (col < static_cast<int>(v.lines[row].size()) && IsSpaceOrTab(v.lines[row][col]))
+        if (col < static_cast<int>(v.lines[row].size()) &&
+            IsSpaceOrTab(v.lines[row][col])) {
+            while (col < static_cast<int>(v.lines[row].size()) &&
+                   IsSpaceOrTab(v.lines[row][col]))
                 ++col;
-            if (col >= static_cast<int>(v.lines[row].size()) && row < max_row) { ++row; col = 0; }
+            if (col >= static_cast<int>(v.lines[row].size()) &&
+                row < max_row) {
+                ++row;
+                col = 0;
+            }
         }
         // Skip to end of word
-        while (row <= max_row && col < static_cast<int>(v.lines[row].size()) && IsWordChar(v.lines[row][col]))
+        while (row <= max_row &&
+               col < static_cast<int>(v.lines[row].size()) &&
+               IsWordChar(v.lines[row][col]))
             ++col;
-        if (col > 0 && col <= static_cast<int>(v.lines[row].size()) && !IsWordChar(v.lines[row][col-1])) {
+        if (col > 0 && col <= static_cast<int>(v.lines[row].size()) &&
+            !IsWordChar(v.lines[row][col - 1])) {
             // We're on a non-word char, move past it
         }
         // Position at last char of word
-        if (col > 0) --col;
+        if (col > 0)
+            --col;
     }
     return {row, col};
 }
 
-ViEditor::CursorPos ViEditor::MotionBigWordForward(const EditorView& v, int count) const {
+ViEditor::CursorPos ViEditor::MotionBigWordForward(const EditorView& v,
+                                                   int count) const {
     int row = v.cursor_row;
     int col = v.cursor_col;
     int max_row = static_cast<int>(v.lines.size()) - 1;
 
     for (int c = 0; c < count; ++c) {
-        while (row <= max_row && col < static_cast<int>(v.lines[row].size()) && IsBigWordChar(v.lines[row][col]))
+        while (row <= max_row &&
+               col < static_cast<int>(v.lines[row].size()) &&
+               IsBigWordChar(v.lines[row][col]))
             ++col;
-        while (col < static_cast<int>(v.lines[row].size()) && IsSpaceOrTab(v.lines[row][col]))
+        while (col < static_cast<int>(v.lines[row].size()) &&
+               IsSpaceOrTab(v.lines[row][col]))
             ++col;
-        if (col >= static_cast<int>(v.lines[row].size()) && row < max_row) {
-            ++row; col = 0;
-            while (col < static_cast<int>(v.lines[row].size()) && IsSpaceOrTab(v.lines[row][col]))
+        if (col >= static_cast<int>(v.lines[row].size()) &&
+            row < max_row) {
+            ++row;
+            col = 0;
+            while (col < static_cast<int>(v.lines[row].size()) &&
+                   IsSpaceOrTab(v.lines[row][col]))
                 ++col;
         }
     }
-    if (row > max_row) { row = max_row; col = static_cast<int>(v.lines[row].size()); }
+    if (row > max_row) {
+        row = max_row;
+        col = static_cast<int>(v.lines[row].size());
+    }
     return {row, col};
 }
 
-ViEditor::CursorPos ViEditor::MotionBigWordBackward(const EditorView& v, int count) const {
+ViEditor::CursorPos ViEditor::MotionBigWordBackward(const EditorView& v,
+                                                    int count) const {
     int row = v.cursor_row;
     int col = v.cursor_col;
     for (int c = 0; c < count; ++c) {
-        while (row >= 0 && col > 0 && IsSpaceOrTab(v.lines[row][col - 1]))
+        while (row >= 0 && col > 0 &&
+               IsSpaceOrTab(v.lines[row][col - 1]))
             --col;
-        if (col == 0 && row > 0) { --row; col = static_cast<int>(v.lines[row].size()); }
-        while (row >= 0 && col > 0 && IsBigWordChar(v.lines[row][col - 1]))
+        if (col == 0 && row > 0) {
+            --row;
+            col = static_cast<int>(v.lines[row].size());
+        }
+        while (row >= 0 && col > 0 &&
+               IsBigWordChar(v.lines[row][col - 1]))
             --col;
     }
-    if (row < 0) row = 0;
+    if (row < 0)
+        row = 0;
     return {row, col};
 }
 
-ViEditor::CursorPos ViEditor::MotionBigWordEndForward(const EditorView& v, int count) const {
+ViEditor::CursorPos
+ViEditor::MotionBigWordEndForward(const EditorView& v,
+                                  int count) const {
     int row = v.cursor_row;
     int col = v.cursor_col;
     int max_row = static_cast<int>(v.lines.size()) - 1;
     for (int c = 0; c < count; ++c) {
-        if (col < static_cast<int>(v.lines[row].size()) && IsSpaceOrTab(v.lines[row][col])) {
-            while (col < static_cast<int>(v.lines[row].size()) && IsSpaceOrTab(v.lines[row][col]))
+        if (col < static_cast<int>(v.lines[row].size()) &&
+            IsSpaceOrTab(v.lines[row][col])) {
+            while (col < static_cast<int>(v.lines[row].size()) &&
+                   IsSpaceOrTab(v.lines[row][col]))
                 ++col;
-            if (col >= static_cast<int>(v.lines[row].size()) && row < max_row) { ++row; col = 0; }
+            if (col >= static_cast<int>(v.lines[row].size()) &&
+                row < max_row) {
+                ++row;
+                col = 0;
+            }
         }
-        while (row <= max_row && col < static_cast<int>(v.lines[row].size()) && IsBigWordChar(v.lines[row][col]))
+        while (row <= max_row &&
+               col < static_cast<int>(v.lines[row].size()) &&
+               IsBigWordChar(v.lines[row][col]))
             ++col;
-        if (col > 0) --col;
+        if (col > 0)
+            --col;
     }
     return {row, col};
 }
 
-ViEditor::CursorPos ViEditor::MotionFindForward(const EditorView& v, char target, int count, bool till) const {
+ViEditor::CursorPos ViEditor::MotionFindForward(const EditorView& v,
+                                                char target, int count,
+                                                bool till) const {
     int row = v.cursor_row;
     int col = v.cursor_col;
     int max_row = static_cast<int>(v.lines.size()) - 1;
@@ -1316,20 +1544,26 @@ ViEditor::CursorPos ViEditor::MotionFindForward(const EditorView& v, char target
                 if (v.lines[row][col] == target) {
                     if (till) {
                         // For 't', stop one char before
-                        if (col > 0) return {row, col - 1};
+                        if (col > 0)
+                            return {row, col - 1};
                     }
                     return {row, col};
                 }
                 ++col;
             }
-            if (row < max_row) { ++row; col = 0; }
-            else break;
+            if (row < max_row) {
+                ++row;
+                col = 0;
+            } else
+                break;
         }
     }
     return {v.cursor_row, v.cursor_col}; // not found, stay
 }
 
-ViEditor::CursorPos ViEditor::MotionFindBackward(const EditorView& v, char target, int count, bool till) const {
+ViEditor::CursorPos ViEditor::MotionFindBackward(const EditorView& v,
+                                                 char target, int count,
+                                                 bool till) const {
     int row = v.cursor_row;
     int col = v.cursor_col;
 
@@ -1339,21 +1573,27 @@ ViEditor::CursorPos ViEditor::MotionFindBackward(const EditorView& v, char targe
             while (col >= 0) {
                 if (v.lines[row][col] == target) {
                     if (till) {
-                        if (col + 1 < static_cast<int>(v.lines[row].size())) return {row, col + 1};
+                        if (col + 1 <
+                            static_cast<int>(v.lines[row].size()))
+                            return {row, col + 1};
                         return {row, col};
                     }
                     return {row, col};
                 }
                 --col;
             }
-            if (row > 0) { --row; col = static_cast<int>(v.lines[row].size()) - 1; }
-            else break;
+            if (row > 0) {
+                --row;
+                col = static_cast<int>(v.lines[row].size()) - 1;
+            } else
+                break;
         }
     }
     return {v.cursor_row, v.cursor_col};
 }
 
-ViEditor::CursorPos ViEditor::MotionParagraphForward(const EditorView& v, int count) const {
+ViEditor::CursorPos
+ViEditor::MotionParagraphForward(const EditorView& v, int count) const {
     int row = v.cursor_row;
     int max_row = static_cast<int>(v.lines.size()) - 1;
     for (int c = 0; c < count && row < max_row; ++c) {
@@ -1367,7 +1607,9 @@ ViEditor::CursorPos ViEditor::MotionParagraphForward(const EditorView& v, int co
     return {row, 0};
 }
 
-ViEditor::CursorPos ViEditor::MotionParagraphBackward(const EditorView& v, int count) const {
+ViEditor::CursorPos
+ViEditor::MotionParagraphBackward(const EditorView& v,
+                                  int count) const {
     int row = v.cursor_row;
     for (int c = 0; c < count && row > 0; ++c) {
         while (row > 0 && !v.lines[row].empty())
@@ -1378,57 +1620,77 @@ ViEditor::CursorPos ViEditor::MotionParagraphBackward(const EditorView& v, int c
     return {row, 0};
 }
 
-ViEditor::CursorPos ViEditor::MotionPercentMatch(const EditorView& v) const {
+ViEditor::CursorPos
+ViEditor::MotionPercentMatch(const EditorView& v) const {
     const auto& line = v.lines[v.cursor_row];
     char target = 0;
-    char under = (v.cursor_col < static_cast<int>(line.size())) ? line[v.cursor_col] : 0;
-    char prev  = (v.cursor_col > 0) ? line[v.cursor_col - 1] : 0;
+    char under = (v.cursor_col < static_cast<int>(line.size()))
+                     ? line[v.cursor_col]
+                     : 0;
+    char prev = (v.cursor_col > 0) ? line[v.cursor_col - 1] : 0;
 
     char open_c = 0, close_c = 0;
 
     if (under == '(' || under == ')' || prev == '(' || prev == ')') {
-        open_c = '('; close_c = ')';
+        open_c = '(';
+        close_c = ')';
         target = (under == '(' || prev == '(') ? open_c : close_c;
-    } else if (under == '[' || under == ']' || prev == '[' || prev == ']') {
-        open_c = '['; close_c = ']';
+    } else if (under == '[' || under == ']' || prev == '[' ||
+               prev == ']') {
+        open_c = '[';
+        close_c = ']';
         target = (under == '[' || prev == '[') ? open_c : close_c;
-    } else if (under == '{' || under == '}' || prev == '{' || prev == '}') {
-        open_c = '{'; close_c = '}';
+    } else if (under == '{' || under == '}' || prev == '{' ||
+               prev == '}') {
+        open_c = '{';
+        close_c = '}';
         target = (under == '{' || prev == '{') ? open_c : close_c;
     }
-    if (!open_c) return {v.cursor_row, v.cursor_col};
+    if (!open_c)
+        return {v.cursor_row, v.cursor_col};
 
     bool forward = (target == open_c);
     char match = forward ? close_c : open_c;
-    char self  = forward ? open_c : close_c;
+    char self = forward ? open_c : close_c;
     int depth = 1;
     int row = v.cursor_row;
-    int col = (prev == self || under == self) ? v.cursor_col : v.cursor_col + 1;
+    int col = (prev == self || under == self) ? v.cursor_col
+                                              : v.cursor_col + 1;
 
     if (forward) {
-        if (col < static_cast<int>(v.lines[row].size()) && v.lines[row][col] == self) {/*already on it*/}
+        if (col < static_cast<int>(v.lines[row].size()) &&
+            v.lines[row][col] == self) { /*already on it*/
+        }
     }
 
     while (depth > 0) {
         if (forward) {
             while (col < static_cast<int>(v.lines[row].size())) {
-                if (v.lines[row][col] == self) ++depth;
-                else if (v.lines[row][col] == match) --depth;
-                if (depth == 0) return {row, col};
+                if (v.lines[row][col] == self)
+                    ++depth;
+                else if (v.lines[row][col] == match)
+                    --depth;
+                if (depth == 0)
+                    return {row, col};
                 ++col;
             }
             ++row;
             col = 0;
         } else {
             while (col >= 0) {
-                if (v.lines[row][col] == self) ++depth;
-                else if (v.lines[row][col] == match) --depth;
-                if (depth == 0) return {row, col};
+                if (v.lines[row][col] == self)
+                    ++depth;
+                else if (v.lines[row][col] == match)
+                    --depth;
+                if (depth == 0)
+                    return {row, col};
                 --col;
             }
             --row;
-            if (row >= 0) col = static_cast<int>(v.lines[row].size()) - 1;
-            else break;
+            if (row >= 0)
+                col = static_cast<int>(v.lines[row].size()) - 1;
+            else
+                break;
         }
     }
     return {v.cursor_row, v.cursor_col};
@@ -1443,11 +1705,15 @@ Range ViEditor::TextObjectInnerWord(const EditorView& v) const {
     int start = v.cursor_col;
     int end = v.cursor_col;
 
-    if (start >= static_cast<int>(line.size()) || !IsWordChar(line[start]))
-        return {v.cursor_row, start, v.cursor_row, std::min(start+1, static_cast<int>(line.size()))};
+    if (start >= static_cast<int>(line.size()) ||
+        !IsWordChar(line[start]))
+        return {v.cursor_row, start, v.cursor_row,
+                std::min(start + 1, static_cast<int>(line.size()))};
 
-    while (start > 0 && IsWordChar(line[start - 1])) --start;
-    while (end < static_cast<int>(line.size()) && IsWordChar(line[end])) ++end;
+    while (start > 0 && IsWordChar(line[start - 1]))
+        --start;
+    while (end < static_cast<int>(line.size()) && IsWordChar(line[end]))
+        ++end;
     return {v.cursor_row, start, v.cursor_row, end};
 }
 
@@ -1457,16 +1723,28 @@ Range ViEditor::TextObjectAWord(const EditorView& v) const {
     int end = v.cursor_col;
 
     // Include trailing/leading whitespace
-    if (start < static_cast<int>(line.size()) && IsWordChar(line[start])) {
-        while (start > 0 && IsWordChar(line[start - 1])) --start;
-        while (end < static_cast<int>(line.size()) && IsWordChar(line[end])) ++end;
+    if (start < static_cast<int>(line.size()) &&
+        IsWordChar(line[start])) {
+        while (start > 0 && IsWordChar(line[start - 1]))
+            --start;
+        while (end < static_cast<int>(line.size()) &&
+               IsWordChar(line[end]))
+            ++end;
         // Include trailing whitespace (one space)
-        if (end < static_cast<int>(line.size()) && IsSpaceOrTab(line[end])) ++end;
-    } else if (start < static_cast<int>(line.size()) && IsSpaceOrTab(line[start])) {
-        while (start > 0 && IsSpaceOrTab(line[start - 1])) --start;
-        while (end < static_cast<int>(line.size()) && IsSpaceOrTab(line[end])) ++end;
+        if (end < static_cast<int>(line.size()) &&
+            IsSpaceOrTab(line[end]))
+            ++end;
+    } else if (start < static_cast<int>(line.size()) &&
+               IsSpaceOrTab(line[start])) {
+        while (start > 0 && IsSpaceOrTab(line[start - 1]))
+            --start;
+        while (end < static_cast<int>(line.size()) &&
+               IsSpaceOrTab(line[end]))
+            ++end;
         // If followed by word, include it
-        while (end < static_cast<int>(line.size()) && IsWordChar(line[end])) ++end;
+        while (end < static_cast<int>(line.size()) &&
+               IsWordChar(line[end]))
+            ++end;
     }
     return {v.cursor_row, start, v.cursor_row, end};
 }
@@ -1475,10 +1753,15 @@ Range ViEditor::TextObjectInnerBigWord(const EditorView& v) const {
     const auto& line = v.lines[v.cursor_row];
     int start = v.cursor_col;
     int end = v.cursor_col;
-    if (start >= static_cast<int>(line.size()) || !IsBigWordChar(line[start]))
-        return {v.cursor_row, start, v.cursor_row, std::min(start+1, static_cast<int>(line.size()))};
-    while (start > 0 && IsBigWordChar(line[start - 1])) --start;
-    while (end < static_cast<int>(line.size()) && IsBigWordChar(line[end])) ++end;
+    if (start >= static_cast<int>(line.size()) ||
+        !IsBigWordChar(line[start]))
+        return {v.cursor_row, start, v.cursor_row,
+                std::min(start + 1, static_cast<int>(line.size()))};
+    while (start > 0 && IsBigWordChar(line[start - 1]))
+        --start;
+    while (end < static_cast<int>(line.size()) &&
+           IsBigWordChar(line[end]))
+        ++end;
     return {v.cursor_row, start, v.cursor_row, end};
 }
 
@@ -1486,37 +1769,59 @@ Range ViEditor::TextObjectABigWord(const EditorView& v) const {
     const auto& line = v.lines[v.cursor_row];
     int start = v.cursor_col;
     int end = v.cursor_col;
-    if (start < static_cast<int>(line.size()) && IsBigWordChar(line[start])) {
-        while (start > 0 && IsBigWordChar(line[start - 1])) --start;
-        while (end < static_cast<int>(line.size()) && IsBigWordChar(line[end])) ++end;
-        if (end < static_cast<int>(line.size()) && IsSpaceOrTab(line[end])) ++end;
-    } else if (start < static_cast<int>(line.size()) && IsSpaceOrTab(line[start])) {
-        while (start > 0 && IsSpaceOrTab(line[start - 1])) --start;
-        while (end < static_cast<int>(line.size()) && IsSpaceOrTab(line[end])) ++end;
-        while (end < static_cast<int>(line.size()) && IsBigWordChar(line[end])) ++end;
+    if (start < static_cast<int>(line.size()) &&
+        IsBigWordChar(line[start])) {
+        while (start > 0 && IsBigWordChar(line[start - 1]))
+            --start;
+        while (end < static_cast<int>(line.size()) &&
+               IsBigWordChar(line[end]))
+            ++end;
+        if (end < static_cast<int>(line.size()) &&
+            IsSpaceOrTab(line[end]))
+            ++end;
+    } else if (start < static_cast<int>(line.size()) &&
+               IsSpaceOrTab(line[start])) {
+        while (start > 0 && IsSpaceOrTab(line[start - 1]))
+            --start;
+        while (end < static_cast<int>(line.size()) &&
+               IsSpaceOrTab(line[end]))
+            ++end;
+        while (end < static_cast<int>(line.size()) &&
+               IsBigWordChar(line[end]))
+            ++end;
     }
     return {v.cursor_row, start, v.cursor_row, end};
 }
 
-Range ViEditor::TextObjectQuoted(const EditorView& v, char quote) const {
+Range ViEditor::TextObjectQuoted(const EditorView& v,
+                                 char quote) const {
     const auto& line = v.lines[v.cursor_row];
     // Find surrounding quotes
     int start = -1;
-    for (int i = 0; i <= v.cursor_col && i < static_cast<int>(line.size()); ++i) {
-        if (line[i] == quote) start = i;
+    for (int i = 0;
+         i <= v.cursor_col && i < static_cast<int>(line.size()); ++i) {
+        if (line[i] == quote)
+            start = i;
     }
-    if (start == -1) return {v.cursor_row, v.cursor_col, v.cursor_row, v.cursor_col};
+    if (start == -1)
+        return {v.cursor_row, v.cursor_col, v.cursor_row, v.cursor_col};
 
     int end = -1;
     for (int i = start + 1; i < static_cast<int>(line.size()); ++i) {
-        if (line[i] == quote) { end = i; break; }
+        if (line[i] == quote) {
+            end = i;
+            break;
+        }
     }
-    if (end == -1) return {v.cursor_row, start + 1, v.cursor_row, static_cast<int>(line.size())};
+    if (end == -1)
+        return {v.cursor_row, start + 1, v.cursor_row,
+                static_cast<int>(line.size())};
 
     return {v.cursor_row, start + 1, v.cursor_row, end}; // inner
 }
 
-Range ViEditor::TextObjectBlock(const EditorView& v, char open, char close) const {
+Range ViEditor::TextObjectBlock(const EditorView& v, char open,
+                                char close) const {
     int row = v.cursor_row;
     int col = v.cursor_col;
     // Find opening bracket by searching backward
@@ -1528,36 +1833,54 @@ Range ViEditor::TextObjectBlock(const EditorView& v, char open, char close) cons
     // Search backward for opening bracket
     while (row >= 0) {
         while (col >= 0) {
-            if (v.lines[row][col] == close) ++depth;
+            if (v.lines[row][col] == close)
+                ++depth;
             else if (v.lines[row][col] == open) {
-                if (depth == 0) { start_row = row; start_col = col; found_open = true; break; }
+                if (depth == 0) {
+                    start_row = row;
+                    start_col = col;
+                    found_open = true;
+                    break;
+                }
                 --depth;
             }
             --col;
         }
-        if (found_open) break;
+        if (found_open)
+            break;
         --row;
-        if (row >= 0) col = static_cast<int>(v.lines[row].size()) - 1;
+        if (row >= 0)
+            col = static_cast<int>(v.lines[row].size()) - 1;
     }
-    if (!found_open) return {v.cursor_row, v.cursor_col, v.cursor_row, v.cursor_col};
+    if (!found_open)
+        return {v.cursor_row, v.cursor_col, v.cursor_row, v.cursor_col};
 
     // Search forward for closing bracket
-    row = start_row; col = start_col + 1;
+    row = start_row;
+    col = start_col + 1;
     depth = 0;
     while (row < static_cast<int>(v.lines.size())) {
         while (col < static_cast<int>(v.lines[row].size())) {
-            if (v.lines[row][col] == open) ++depth;
+            if (v.lines[row][col] == open)
+                ++depth;
             else if (v.lines[row][col] == close) {
-                if (depth == 0) { end_row = row; end_col = col; found_close = true; break; }
+                if (depth == 0) {
+                    end_row = row;
+                    end_col = col;
+                    found_close = true;
+                    break;
+                }
                 --depth;
             }
             ++col;
         }
-        if (found_close) break;
+        if (found_close)
+            break;
         ++row;
         col = 0;
     }
-    if (!found_close) return {start_row, start_col + 1, v.cursor_row, v.cursor_col};
+    if (!found_close)
+        return {start_row, start_col + 1, v.cursor_row, v.cursor_col};
 
     return {start_row, start_col + 1, end_row, end_col}; // inner
 }
@@ -1575,7 +1898,8 @@ Range ViEditor::TextObjectInnerParagraph(const EditorView& v) const {
     while (end < max_row && !v.lines[end + 1].empty())
         ++end;
 
-    // end_row with end_col = 0 signals linewise (covers start..end inclusive)
+    // end_row with end_col = 0 signals linewise (covers start..end
+    // inclusive)
     return {start, 0, end, 0};
 }
 
@@ -1605,89 +1929,146 @@ Range ViEditor::TextObjectAParagraph(const EditorView& v) const {
 
 TextObjectType ViEditor::ParseTextObject(char c, bool inner) const {
     if (inner) {
-        if (c == 'w') return TextObjectType::INNER_WORD;
-        if (c == 'W') return TextObjectType::INNER_WORD_BIG;
-        if (c == '\'') return TextObjectType::INNER_QUOTE;
-        if (c == '"') return TextObjectType::INNER_DQUOTE;
-        if (c == '`') return TextObjectType::INNER_BACKTICK;
-        if (c == '(' || c == ')') return TextObjectType::INNER_PAREN;
-        if (c == '[' || c == ']') return TextObjectType::INNER_BRACKET;
-        if (c == '{' || c == '}') return TextObjectType::INNER_BRACE;
-        if (c == '<' || c == '>') return TextObjectType::INNER_ANGLE;
-        if (c == 'p') return TextObjectType::INNER_PARAGRAPH;
+        if (c == 'w')
+            return TextObjectType::INNER_WORD;
+        if (c == 'W')
+            return TextObjectType::INNER_WORD_BIG;
+        if (c == '\'')
+            return TextObjectType::INNER_QUOTE;
+        if (c == '"')
+            return TextObjectType::INNER_DQUOTE;
+        if (c == '`')
+            return TextObjectType::INNER_BACKTICK;
+        if (c == '(' || c == ')')
+            return TextObjectType::INNER_PAREN;
+        if (c == '[' || c == ']')
+            return TextObjectType::INNER_BRACKET;
+        if (c == '{' || c == '}')
+            return TextObjectType::INNER_BRACE;
+        if (c == '<' || c == '>')
+            return TextObjectType::INNER_ANGLE;
+        if (c == 'p')
+            return TextObjectType::INNER_PARAGRAPH;
     } else {
-        if (c == 'w') return TextObjectType::A_WORD;
-        if (c == 'W') return TextObjectType::A_WORD_BIG;
-        if (c == '\'') return TextObjectType::A_QUOTE;
-        if (c == '"') return TextObjectType::A_DQUOTE;
-        if (c == '`') return TextObjectType::A_BACKTICK;
-        if (c == '(' || c == ')') return TextObjectType::A_PAREN;
-        if (c == '[' || c == ']') return TextObjectType::A_BRACKET;
-        if (c == '{' || c == '}') return TextObjectType::A_BRACE;
-        if (c == '<' || c == '>') return TextObjectType::A_ANGLE;
-        if (c == 'p') return TextObjectType::A_PARAGRAPH;
+        if (c == 'w')
+            return TextObjectType::A_WORD;
+        if (c == 'W')
+            return TextObjectType::A_WORD_BIG;
+        if (c == '\'')
+            return TextObjectType::A_QUOTE;
+        if (c == '"')
+            return TextObjectType::A_DQUOTE;
+        if (c == '`')
+            return TextObjectType::A_BACKTICK;
+        if (c == '(' || c == ')')
+            return TextObjectType::A_PAREN;
+        if (c == '[' || c == ']')
+            return TextObjectType::A_BRACKET;
+        if (c == '{' || c == '}')
+            return TextObjectType::A_BRACE;
+        if (c == '<' || c == '>')
+            return TextObjectType::A_ANGLE;
+        if (c == 'p')
+            return TextObjectType::A_PARAGRAPH;
     }
     return TextObjectType::NONE;
 }
 
-Range ViEditor::GetRangeForTextObject(EditorView& view, TextObjectType tobj) {
+Range ViEditor::GetRangeForTextObject(EditorView& view,
+                                      TextObjectType tobj) {
     switch (tobj) {
-        case TextObjectType::INNER_WORD: return TextObjectInnerWord(view);
-        case TextObjectType::A_WORD: return TextObjectAWord(view);
-        case TextObjectType::INNER_WORD_BIG: return TextObjectInnerBigWord(view);
-        case TextObjectType::A_WORD_BIG: return TextObjectABigWord(view);
-        case TextObjectType::INNER_QUOTE: return TextObjectQuoted(view, '\'');
-        case TextObjectType::A_QUOTE: {
-            auto inner = TextObjectQuoted(view, '\'');
-            if (inner.start_col > 0) inner.start_col--;
-            if (inner.end_col < static_cast<int>(view.lines[inner.end_row].size())) inner.end_col++;
-            return inner;
-        }
-        case TextObjectType::INNER_DQUOTE: return TextObjectQuoted(view, '"');
-        case TextObjectType::A_DQUOTE: {
-            auto inner = TextObjectQuoted(view, '"');
-            if (inner.start_col > 0) inner.start_col--;
-            if (inner.end_col < static_cast<int>(view.lines[inner.end_row].size())) inner.end_col++;
-            return inner;
-        }
-        case TextObjectType::INNER_BACKTICK: return TextObjectQuoted(view, '`');
-        case TextObjectType::A_BACKTICK: {
-            auto inner = TextObjectQuoted(view, '`');
-            if (inner.start_col > 0) inner.start_col--;
-            if (inner.end_col < static_cast<int>(view.lines[inner.end_row].size())) inner.end_col++;
-            return inner;
-        }
-        case TextObjectType::INNER_PAREN: return TextObjectBlock(view, '(', ')');
-        case TextObjectType::A_PAREN: {
-            auto inner = TextObjectBlock(view, '(', ')');
-            if (inner.start_col > 0) inner.start_col--;
-            if (inner.end_col < static_cast<int>(view.lines[inner.end_row].size())) inner.end_col++;
-            return inner;
-        }
-        case TextObjectType::INNER_BRACKET: return TextObjectBlock(view, '[', ']');
-        case TextObjectType::A_BRACKET: {
-            auto inner = TextObjectBlock(view, '[', ']');
-            if (inner.start_col > 0) inner.start_col--;
-            if (inner.end_col < static_cast<int>(view.lines[inner.end_row].size())) inner.end_col++;
-            return inner;
-        }
-        case TextObjectType::INNER_BRACE: return TextObjectBlock(view, '{', '}');
-        case TextObjectType::A_BRACE: {
-            auto inner = TextObjectBlock(view, '{', '}');
-            if (inner.start_col > 0) inner.start_col--;
-            if (inner.end_col < static_cast<int>(view.lines[inner.end_row].size())) inner.end_col++;
-            return inner;
-        }
-        case TextObjectType::INNER_ANGLE: return TextObjectBlock(view, '<', '>');
-        case TextObjectType::A_ANGLE: {
-            auto inner = TextObjectBlock(view, '<', '>');
-            if (inner.start_col > 0) inner.start_col--;
-            if (inner.end_col < static_cast<int>(view.lines[inner.end_row].size())) inner.end_col++;
-            return inner;
-        }
-        case TextObjectType::INNER_PARAGRAPH: return TextObjectInnerParagraph(view);
-        case TextObjectType::A_PARAGRAPH: return TextObjectAParagraph(view);
-        default: return {view.cursor_row, view.cursor_col, view.cursor_row, view.cursor_col};
+    case TextObjectType::INNER_WORD:
+        return TextObjectInnerWord(view);
+    case TextObjectType::A_WORD:
+        return TextObjectAWord(view);
+    case TextObjectType::INNER_WORD_BIG:
+        return TextObjectInnerBigWord(view);
+    case TextObjectType::A_WORD_BIG:
+        return TextObjectABigWord(view);
+    case TextObjectType::INNER_QUOTE:
+        return TextObjectQuoted(view, '\'');
+    case TextObjectType::A_QUOTE: {
+        auto inner = TextObjectQuoted(view, '\'');
+        if (inner.start_col > 0)
+            inner.start_col--;
+        if (inner.end_col <
+            static_cast<int>(view.lines[inner.end_row].size()))
+            inner.end_col++;
+        return inner;
+    }
+    case TextObjectType::INNER_DQUOTE:
+        return TextObjectQuoted(view, '"');
+    case TextObjectType::A_DQUOTE: {
+        auto inner = TextObjectQuoted(view, '"');
+        if (inner.start_col > 0)
+            inner.start_col--;
+        if (inner.end_col <
+            static_cast<int>(view.lines[inner.end_row].size()))
+            inner.end_col++;
+        return inner;
+    }
+    case TextObjectType::INNER_BACKTICK:
+        return TextObjectQuoted(view, '`');
+    case TextObjectType::A_BACKTICK: {
+        auto inner = TextObjectQuoted(view, '`');
+        if (inner.start_col > 0)
+            inner.start_col--;
+        if (inner.end_col <
+            static_cast<int>(view.lines[inner.end_row].size()))
+            inner.end_col++;
+        return inner;
+    }
+    case TextObjectType::INNER_PAREN:
+        return TextObjectBlock(view, '(', ')');
+    case TextObjectType::A_PAREN: {
+        auto inner = TextObjectBlock(view, '(', ')');
+        if (inner.start_col > 0)
+            inner.start_col--;
+        if (inner.end_col <
+            static_cast<int>(view.lines[inner.end_row].size()))
+            inner.end_col++;
+        return inner;
+    }
+    case TextObjectType::INNER_BRACKET:
+        return TextObjectBlock(view, '[', ']');
+    case TextObjectType::A_BRACKET: {
+        auto inner = TextObjectBlock(view, '[', ']');
+        if (inner.start_col > 0)
+            inner.start_col--;
+        if (inner.end_col <
+            static_cast<int>(view.lines[inner.end_row].size()))
+            inner.end_col++;
+        return inner;
+    }
+    case TextObjectType::INNER_BRACE:
+        return TextObjectBlock(view, '{', '}');
+    case TextObjectType::A_BRACE: {
+        auto inner = TextObjectBlock(view, '{', '}');
+        if (inner.start_col > 0)
+            inner.start_col--;
+        if (inner.end_col <
+            static_cast<int>(view.lines[inner.end_row].size()))
+            inner.end_col++;
+        return inner;
+    }
+    case TextObjectType::INNER_ANGLE:
+        return TextObjectBlock(view, '<', '>');
+    case TextObjectType::A_ANGLE: {
+        auto inner = TextObjectBlock(view, '<', '>');
+        if (inner.start_col > 0)
+            inner.start_col--;
+        if (inner.end_col <
+            static_cast<int>(view.lines[inner.end_row].size()))
+            inner.end_col++;
+        return inner;
+    }
+    case TextObjectType::INNER_PARAGRAPH:
+        return TextObjectInnerParagraph(view);
+    case TextObjectType::A_PARAGRAPH:
+        return TextObjectAParagraph(view);
+    default:
+        return {view.cursor_row, view.cursor_col, view.cursor_row,
+                view.cursor_col};
     }
 }
 
@@ -1695,134 +2076,145 @@ Range ViEditor::GetRangeForTextObject(EditorView& view, TextObjectType tobj) {
 // Operator execution
 // ============================================================================
 
-void ViEditor::ExecuteOperator(EditorView& view, OperatorType op, const Range& r) {
+void ViEditor::ExecuteOperator(EditorView& view, OperatorType op,
+                               const Range& r) {
     Range adjusted = r;
     // For linewise operations, ensure range covers full lines
     bool linewise = false;
 
     switch (op) {
-        case OperatorType::DELETE_OP: {
-            auto yanked = ExtractRange(view, adjusted);
-            // Check if this is a linewise delete (covers full lines)
-            if (adjusted.start_col == 0 && adjusted.end_col == 0) {
-                linewise = true;
-                // adjust range to cover full lines
-                int sr = std::min(adjusted.start_row, adjusted.end_row);
-                int er = std::max(adjusted.start_row, adjusted.end_row);
-                adjusted = {sr, 0, er, static_cast<int>(view.lines[er].size())};
-                yanked = ExtractRange(view, adjusted);
-                PushUndo(view, sr, er - sr + 1);
-                DeleteRange(view, adjusted);
-                if (sr < static_cast<int>(view.lines.size())) {
-                    view.cursor_row = sr;
-                    view.cursor_col = 0;
-                }
-            } else {
-                int sr = std::min(adjusted.start_row, adjusted.end_row);
-                int er = std::max(adjusted.start_row, adjusted.end_row);
-                PushUndo(view, sr, er - sr + 1);
-                DeleteRange(view, adjusted);
-                if (adjusted.start_row <= adjusted.end_row) {
-                    view.cursor_row = adjusted.start_row;
-                    view.cursor_col = adjusted.start_col;
-                } else {
-                    view.cursor_row = adjusted.end_row;
-                    view.cursor_col = adjusted.end_col;
-                }
-            }
-            view.yank_register = yanked;
-            view.yank_linewise = linewise;
-            view.yank_blockwise = false;
-            RecordChange(op, adjusted, linewise);
-            break;
-        }
-        case OperatorType::CHANGE: {
-            // Snapshot pre-change state for undo (the entire c<motion> including subsequent insert)
-            int change_sr = std::min(adjusted.start_row, adjusted.end_row);
-            int change_er = std::max(adjusted.start_row, adjusted.end_row);
-            view.insert_undo_pending = true;
-            view.insert_undo_start_row = view.cursor_row;
-            view.insert_undo_start_col = view.cursor_col;
-            view.insert_undo_old_lines.clear();
-            int snap_end = std::min(change_er + 1, static_cast<int>(view.lines.size()));
-            for (int i = change_sr; i < snap_end; ++i)
-                view.insert_undo_old_lines.push_back(view.lines[i]);
-            view.insert_undo_line_count = snap_end - change_sr;
-
-            auto yanked = ExtractRange(view, adjusted);
-            if (adjusted.start_col == 0 && adjusted.end_col == 0) {
-                linewise = true;
-                adjusted = {change_sr, 0, change_er, static_cast<int>(view.lines[change_er].size())};
-                yanked = ExtractRange(view, adjusted);
-            }
-            // Note: no PushUndo here - the undo is finalized when leaving insert mode
+    case OperatorType::DELETE_OP: {
+        auto yanked = ExtractRange(view, adjusted);
+        // Check if this is a linewise delete (covers full lines)
+        if (adjusted.start_col == 0 && adjusted.end_col == 0) {
+            linewise = true;
+            // adjust range to cover full lines
+            int sr = std::min(adjusted.start_row, adjusted.end_row);
+            int er = std::max(adjusted.start_row, adjusted.end_row);
+            adjusted = {sr, 0, er,
+                        static_cast<int>(view.lines[er].size())};
+            yanked = ExtractRange(view, adjusted);
+            PushUndo(view, sr, er - sr + 1);
             DeleteRange(view, adjusted);
-            view.yank_register = yanked;
-            view.yank_linewise = linewise;
-            view.yank_blockwise = false;
-            RecordChange(op, adjusted, linewise);
-            if (linewise) {
-                // Cursor is already on the now-empty line; just enter insert mode
+            if (sr < static_cast<int>(view.lines.size())) {
+                view.cursor_row = sr;
                 view.cursor_col = 0;
-            } else {
-                // Place cursor at the start of the deleted range
-                if (adjusted.start_row <= adjusted.end_row) {
-                    view.cursor_row = adjusted.start_row;
-                    view.cursor_col = adjusted.start_col;
-                } else {
-                    view.cursor_row = adjusted.end_row;
-                    view.cursor_col = adjusted.end_col;
-                }
             }
-            mode_ = Mode::INSERT;
-            recording_insert_ = true;
-            insert_recording_.clear();
-            break;
-        }
-        case OperatorType::YANK: {
-            auto yanked = ExtractRange(view, adjusted);
-            if (adjusted.start_col == 0 && adjusted.end_col == 0 && adjusted.start_row != adjusted.end_row) {
-                view.yank_linewise = true;
+        } else {
+            int sr = std::min(adjusted.start_row, adjusted.end_row);
+            int er = std::max(adjusted.start_row, adjusted.end_row);
+            PushUndo(view, sr, er - sr + 1);
+            DeleteRange(view, adjusted);
+            if (adjusted.start_row <= adjusted.end_row) {
+                view.cursor_row = adjusted.start_row;
+                view.cursor_col = adjusted.start_col;
             } else {
-                view.yank_linewise = false;
+                view.cursor_row = adjusted.end_row;
+                view.cursor_col = adjusted.end_col;
             }
-            view.yank_blockwise = false;
-            view.yank_register = yanked;
-            // Cursor doesn't move for yank
-            SetStatus("Yanked " + std::to_string(yanked.size()) + " line(s)");
-            break;
         }
-        case OperatorType::INDENT: {
-            int sr = std::min(adjusted.start_row, adjusted.end_row);
-            int er = std::max(adjusted.start_row, adjusted.end_row);
-            PushUndo(view, sr, er - sr + 1);
-            IndentRange(view, adjusted, true);
-            break;
+        view.yank_register = yanked;
+        view.yank_linewise = linewise;
+        view.yank_blockwise = false;
+        RecordChange(op, adjusted, linewise);
+        break;
+    }
+    case OperatorType::CHANGE: {
+        // Snapshot pre-change state for undo (the entire c<motion>
+        // including subsequent insert)
+        int change_sr = std::min(adjusted.start_row, adjusted.end_row);
+        int change_er = std::max(adjusted.start_row, adjusted.end_row);
+        view.insert_undo_pending = true;
+        view.insert_undo_start_row = view.cursor_row;
+        view.insert_undo_start_col = view.cursor_col;
+        view.insert_undo_old_lines.clear();
+        int snap_end = std::min(change_er + 1,
+                                static_cast<int>(view.lines.size()));
+        for (int i = change_sr; i < snap_end; ++i)
+            view.insert_undo_old_lines.push_back(view.lines[i]);
+        view.insert_undo_line_count = snap_end - change_sr;
+
+        auto yanked = ExtractRange(view, adjusted);
+        if (adjusted.start_col == 0 && adjusted.end_col == 0) {
+            linewise = true;
+            adjusted = {change_sr, 0, change_er,
+                        static_cast<int>(view.lines[change_er].size())};
+            yanked = ExtractRange(view, adjusted);
         }
-        case OperatorType::OUTDENT: {
-            int sr = std::min(adjusted.start_row, adjusted.end_row);
-            int er = std::max(adjusted.start_row, adjusted.end_row);
-            PushUndo(view, sr, er - sr + 1);
-            IndentRange(view, adjusted, false);
-            break;
+        // Note: no PushUndo here - the undo is finalized when leaving
+        // insert mode
+        DeleteRange(view, adjusted);
+        view.yank_register = yanked;
+        view.yank_linewise = linewise;
+        view.yank_blockwise = false;
+        RecordChange(op, adjusted, linewise);
+        if (linewise) {
+            // Cursor is already on the now-empty line; just enter
+            // insert mode
+            view.cursor_col = 0;
+        } else {
+            // Place cursor at the start of the deleted range
+            if (adjusted.start_row <= adjusted.end_row) {
+                view.cursor_row = adjusted.start_row;
+                view.cursor_col = adjusted.start_col;
+            } else {
+                view.cursor_row = adjusted.end_row;
+                view.cursor_col = adjusted.end_col;
+            }
         }
-        case OperatorType::TILDE_CASE: {
-            int sr = std::min(adjusted.start_row, adjusted.end_row);
-            int er = std::max(adjusted.start_row, adjusted.end_row);
-            PushUndo(view, sr, er - sr + 1);
-            ToggleCaseRange(view, adjusted);
-            break;
+        mode_ = Mode::INSERT;
+        recording_insert_ = true;
+        insert_recording_.clear();
+        break;
+    }
+    case OperatorType::YANK: {
+        auto yanked = ExtractRange(view, adjusted);
+        if (adjusted.start_col == 0 && adjusted.end_col == 0 &&
+            adjusted.start_row != adjusted.end_row) {
+            view.yank_linewise = true;
+        } else {
+            view.yank_linewise = false;
         }
-        default:
-            break;
+        view.yank_blockwise = false;
+        view.yank_register = yanked;
+        // Cursor doesn't move for yank
+        SetStatus("Yanked " + std::to_string(yanked.size()) +
+                  " line(s)");
+        break;
+    }
+    case OperatorType::INDENT: {
+        int sr = std::min(adjusted.start_row, adjusted.end_row);
+        int er = std::max(adjusted.start_row, adjusted.end_row);
+        PushUndo(view, sr, er - sr + 1);
+        IndentRange(view, adjusted, true);
+        break;
+    }
+    case OperatorType::OUTDENT: {
+        int sr = std::min(adjusted.start_row, adjusted.end_row);
+        int er = std::max(adjusted.start_row, adjusted.end_row);
+        PushUndo(view, sr, er - sr + 1);
+        IndentRange(view, adjusted, false);
+        break;
+    }
+    case OperatorType::TILDE_CASE: {
+        int sr = std::min(adjusted.start_row, adjusted.end_row);
+        int er = std::max(adjusted.start_row, adjusted.end_row);
+        PushUndo(view, sr, er - sr + 1);
+        ToggleCaseRange(view, adjusted);
+        break;
+    }
+    default:
+        break;
     }
     UpdateScroll(view);
-    // Change operator stays in INSERT; all others exit operator-pending back to NORMAL
+    // Change operator stays in INSERT; all others exit operator-pending
+    // back to NORMAL
     if (op != OperatorType::CHANGE && mode_ == Mode::OPERATOR_PENDING)
         mode_ = Mode::NORMAL;
 }
 
-bool ViEditor::ApplyOperatorMotion(EditorView& view, const CursorPos& target) {
+bool ViEditor::ApplyOperatorMotion(EditorView& view,
+                                   const CursorPos& target) {
     Range r;
     r.start_row = view.cursor_row;
     r.start_col = view.cursor_col;
@@ -1840,7 +2232,8 @@ bool ViEditor::ApplyOperatorMotion(EditorView& view, const CursorPos& target) {
 // Dot repeat
 // ============================================================================
 
-void ViEditor::RecordChange(OperatorType op, const Range& r, bool linewise) {
+void ViEditor::RecordChange(OperatorType op, const Range& r,
+                            bool linewise) {
     last_change_.op = op;
     last_change_.range = r;
     last_change_.was_linewise = linewise;
@@ -1860,7 +2253,8 @@ void ViEditor::RepeatLastChange() {
         return;
     }
     EditorView& view = active();
-    if (last_change_.op == OperatorType::CHANGE && !last_change_.inserted_text.empty()) {
+    if (last_change_.op == OperatorType::CHANGE &&
+        !last_change_.inserted_text.empty()) {
         // Insert mode change: repeat the inserted text
         // First move cursor forward by one (like after 'a')
         // Actually for dot, we repeat the change at cursor position
@@ -1872,7 +2266,8 @@ void ViEditor::RepeatLastChange() {
                 std::string& line = view.lines[view.cursor_row];
                 std::string rest = line.substr(view.cursor_col);
                 line.erase(view.cursor_col);
-                view.lines.insert(view.lines.begin() + view.cursor_row + 1, rest);
+                view.lines.insert(
+                    view.lines.begin() + view.cursor_row + 1, rest);
                 ++view.cursor_row;
                 view.cursor_col = 0;
             } else {
@@ -1881,10 +2276,13 @@ void ViEditor::RepeatLastChange() {
         }
         view.modified = true;
         mode_ = Mode::NORMAL;
-        // Move cursor left by 1 (Vim convention: dot leaves cursor on last char)
-        if (view.cursor_col > 0) --view.cursor_col;
+        // Move cursor left by 1 (Vim convention: dot leaves cursor on
+        // last char)
+        if (view.cursor_col > 0)
+            --view.cursor_col;
     } else if (last_change_.op == OperatorType::DELETE_OP) {
-        // Re-execute delete on the same range shape, starting from cursor
+        // Re-execute delete on the same range shape, starting from
+        // cursor
         DeleteRange(view, last_change_.range);
     } else if (last_change_.op == OperatorType::CHANGE) {
         DeleteRange(view, last_change_.range);
@@ -1927,7 +2325,8 @@ Range ViEditor::GetVisualRange(const EditorView& v) const {
         r.end_col = v.cursor_col;
         // Character visual: include the character under cursor
         if (r.end_col < static_cast<int>(v.lines[r.end_row].size())) {
-            if (r.start_row < r.end_row || (r.start_row == r.end_row && r.start_col <= r.end_col))
+            if (r.start_row < r.end_row ||
+                (r.start_row == r.end_row && r.start_col <= r.end_col))
                 r.end_col++;
             else
                 r.start_col++;
@@ -1937,9 +2336,10 @@ Range ViEditor::GetVisualRange(const EditorView& v) const {
         r.end_row = std::max(visual_sel_.anchor_row, v.cursor_row);
         r.start_col = 0;
         r.end_col = 0; // signal linewise
-    } else { // VISUAL_BLOCK
+    } else {           // VISUAL_BLOCK
         int col_start = std::min(visual_sel_.anchor_col, v.cursor_col);
-        int col_end = std::max(visual_sel_.anchor_col, v.cursor_col) + 1;
+        int col_end =
+            std::max(visual_sel_.anchor_col, v.cursor_col) + 1;
         r.start_row = std::min(visual_sel_.anchor_row, v.cursor_row);
         r.end_row = std::max(visual_sel_.anchor_row, v.cursor_row);
         r.start_col = col_start;
@@ -1948,7 +2348,8 @@ Range ViEditor::GetVisualRange(const EditorView& v) const {
     return r;
 }
 
-void ViEditor::ApplyOperatorToSelection(EditorView& view, OperatorType op) {
+void ViEditor::ApplyOperatorToSelection(EditorView& view,
+                                        OperatorType op) {
     Range r = GetVisualRange(view);
     ExecuteOperator(view, op, r);
     ExitVisual();
@@ -1987,8 +2388,12 @@ void ViEditor::DoIncrementalSearch() {
         auto flags = std::regex::ECMAScript;
         if (icase) {
             // if pattern has uppercase, make it case-sensitive
-            bool has_upper = std::any_of(pat.begin(), pat.end(), [](char c) { return std::isupper(static_cast<unsigned char>(c)); });
-            if (!has_upper) flags |= std::regex::icase;
+            bool has_upper =
+                std::any_of(pat.begin(), pat.end(), [](char c) {
+                    return std::isupper(static_cast<unsigned char>(c));
+                });
+            if (!has_upper)
+                flags |= std::regex::icase;
         }
         re = std::regex(pat, flags);
     } catch (const std::regex_error&) {
@@ -1998,11 +2403,14 @@ void ViEditor::DoIncrementalSearch() {
     }
 
     active().search_matches.clear();
-    for (int row = 0; row < static_cast<int>(view.lines.size()); ++row) {
-        std::sregex_iterator it(view.lines[row].begin(), view.lines[row].end(), re);
+    for (int row = 0; row < static_cast<int>(view.lines.size());
+         ++row) {
+        std::sregex_iterator it(view.lines[row].begin(),
+                                view.lines[row].end(), re);
         std::sregex_iterator end;
         for (; it != end; ++it) {
-            active().search_matches.push_back({row, static_cast<int>(it->position())});
+            active().search_matches.push_back(
+                {row, static_cast<int>(it->position())});
         }
     }
 
@@ -2019,30 +2427,39 @@ void ViEditor::DoIncrementalSearch() {
         active().current_match_idx = -1;
         for (size_t i = 0; i < active().search_matches.size(); ++i) {
             auto& m = active().search_matches[i];
-            if (m.first > start_row || (m.first == start_row && m.second >= start_col)) {
+            if (m.first > start_row ||
+                (m.first == start_row && m.second >= start_col)) {
                 active().current_match_idx = static_cast<int>(i);
                 break;
             }
         }
-        if (active().current_match_idx == -1 && !active().search_matches.empty())
+        if (active().current_match_idx == -1 &&
+            !active().search_matches.empty())
             active().current_match_idx = 0; // wrap
     } else {
         int start_row = view.cursor_row;
         int start_col = view.cursor_col;
         active().current_match_idx = -1;
-        for (int i = static_cast<int>(active().search_matches.size()) - 1; i >= 0; --i) {
+        for (int i =
+                 static_cast<int>(active().search_matches.size()) - 1;
+             i >= 0; --i) {
             auto& m = active().search_matches[i];
-            if (m.first < start_row || (m.first == start_row && m.second < start_col)) {
+            if (m.first < start_row ||
+                (m.first == start_row && m.second < start_col)) {
                 active().current_match_idx = i;
                 break;
             }
         }
-        if (active().current_match_idx == -1 && !active().search_matches.empty())
-            active().current_match_idx = static_cast<int>(active().search_matches.size()) - 1;
+        if (active().current_match_idx == -1 &&
+            !active().search_matches.empty())
+            active().current_match_idx =
+                static_cast<int>(active().search_matches.size()) - 1;
     }
 
     // Jump to current match
-    if (active().current_match_idx >= 0 && active().current_match_idx < static_cast<int>(active().search_matches.size())) {
+    if (active().current_match_idx >= 0 &&
+        active().current_match_idx <
+            static_cast<int>(active().search_matches.size())) {
         auto& m = active().search_matches[active().current_match_idx];
         view.cursor_row = m.first;
         view.cursor_col = m.second;
@@ -2075,25 +2492,35 @@ void ViEditor::SearchWordUnderCursor(bool forward) {
     // Find word boundaries at cursor
     int start = view.cursor_col;
     int end = view.cursor_col;
-    if (start < static_cast<int>(line.size()) && IsWordChar(line[start])) {
-        while (start > 0 && IsWordChar(line[start - 1])) --start;
-        while (end < static_cast<int>(line.size()) && IsWordChar(line[end])) ++end;
+    if (start < static_cast<int>(line.size()) &&
+        IsWordChar(line[start])) {
+        while (start > 0 && IsWordChar(line[start - 1]))
+            --start;
+        while (end < static_cast<int>(line.size()) &&
+               IsWordChar(line[end]))
+            ++end;
     } else {
         // Just search for the next word
-        while (end < static_cast<int>(line.size()) && !IsWordChar(line[end])) ++end;
-        if (end >= static_cast<int>(line.size())) return;
+        while (end < static_cast<int>(line.size()) &&
+               !IsWordChar(line[end]))
+            ++end;
+        if (end >= static_cast<int>(line.size()))
+            return;
         start = end;
-        while (end < static_cast<int>(line.size()) && IsWordChar(line[end])) ++end;
+        while (end < static_cast<int>(line.size()) &&
+               IsWordChar(line[end]))
+            ++end;
     }
     std::string word = line.substr(start, end - start);
-    if (word.empty()) return;
+    if (word.empty())
+        return;
 
     // Escape regex special characters
     std::string escaped;
     for (char c : word) {
-        if (c == '.' || c == '*' || c == '+' || c == '?' || c == '[' || c == ']' ||
-            c == '(' || c == ')' || c == '{' || c == '}' || c == '^' || c == '$' ||
-            c == '|' || c == '\\')
+        if (c == '.' || c == '*' || c == '+' || c == '?' || c == '[' ||
+            c == ']' || c == '(' || c == ')' || c == '{' || c == '}' ||
+            c == '^' || c == '$' || c == '|' || c == '\\')
             escaped += '\\';
         escaped += c;
     }
@@ -2106,7 +2533,8 @@ void ViEditor::SearchWordUnderCursor(bool forward) {
 }
 
 void ViEditor::UpdateSearchMatches() {
-    if (active().last_search.empty()) return;
+    if (active().last_search.empty())
+        return;
     EditorView& view = active();
     active().search_pattern = active().last_search;
     search_forward_ = true;
@@ -2114,18 +2542,27 @@ void ViEditor::UpdateSearchMatches() {
 
     std::regex re;
     try {
-        bool has_upper = std::any_of(pat.begin(), pat.end(), [](char c) { return std::isupper(static_cast<unsigned char>(c)); });
+        bool has_upper =
+            std::any_of(pat.begin(), pat.end(), [](char c) {
+                return std::isupper(static_cast<unsigned char>(c));
+            });
         auto flags = std::regex::ECMAScript;
-        if (!has_upper) flags |= std::regex::icase;
+        if (!has_upper)
+            flags |= std::regex::icase;
         re = std::regex(pat, flags);
-    } catch (...) { return; }
+    } catch (...) {
+        return;
+    }
 
     active().search_matches.clear();
-    for (int row = 0; row < static_cast<int>(view.lines.size()); ++row) {
-        std::sregex_iterator it(view.lines[row].begin(), view.lines[row].end(), re);
+    for (int row = 0; row < static_cast<int>(view.lines.size());
+         ++row) {
+        std::sregex_iterator it(view.lines[row].begin(),
+                                view.lines[row].end(), re);
         std::sregex_iterator end;
         for (; it != end; ++it) {
-            active().search_matches.push_back({row, static_cast<int>(it->position())});
+            active().search_matches.push_back(
+                {row, static_cast<int>(it->position())});
             // Also store length for highlighting (we can recompute)
         }
     }
@@ -2150,23 +2587,27 @@ void ViEditor::ExecuteCommand() {
         SaveFile(view);
     } else if (command_line_ == "q") {
         if (!view.modified) {
-            if (screen_) screen_->Exit();
+            if (screen_)
+                screen_->Exit();
             return;
         } else
             SetStatus("File modified (use :q! to discard)");
     } else if (command_line_ == "wq") {
         SaveFile(view);
-        if (screen_) screen_->Exit();
+        if (screen_)
+            screen_->Exit();
         return;
     } else if (command_line_ == "q!") {
-        if (screen_) screen_->Exit();
+        if (screen_)
+            screen_->Exit();
         return;
     } else if (command_line_.rfind("e ", 0) == 0) {
         view.filename = command_line_.substr(2);
         LoadFile(view);
         view.cursor_row = view.cursor_col = view.top_row = 0;
         view.modified = false;
-    } else if (command_line_ == "nohl" || command_line_ == "nohlsearch") {
+    } else if (command_line_ == "nohl" ||
+               command_line_ == "nohlsearch") {
         ClearSearchHighlight();
     } else if (command_line_.rfind("map ", 0) == 0) {
         // :map from to
@@ -2180,13 +2621,15 @@ void ViEditor::ExecuteCommand() {
         } else {
             SetStatus("Usage: :map <from> <to>");
         }
-    } else if (command_line_.rfind("split ", 0) == 0 || command_line_ == "sp") {
+    } else if (command_line_.rfind("split ", 0) == 0 ||
+               command_line_ == "sp") {
         SplitHorizontal();
         if (command_line_.size() > 6) {
             views_.back().filename = command_line_.substr(6);
             LoadFile(views_.back());
         }
-    } else if (command_line_.rfind("vsplit ", 0) == 0 || command_line_ == "vsp") {
+    } else if (command_line_.rfind("vsplit ", 0) == 0 ||
+               command_line_ == "vsp") {
         SplitVertical();
         if (command_line_.size() > 7) {
             views_.back().filename = command_line_.substr(7);
@@ -2194,9 +2637,12 @@ void ViEditor::ExecuteCommand() {
         }
     } else if (command_line_.rfind("set ", 0) == 0) {
         std::string setting = command_line_.substr(4);
-        if (setting == "hlsearch") active().search_highlight = true;
-        else if (setting == "nohlsearch") active().search_highlight = false;
-        else SetStatus("Unknown option: " + setting);
+        if (setting == "hlsearch")
+            active().search_highlight = true;
+        else if (setting == "nohlsearch")
+            active().search_highlight = false;
+        else
+            SetStatus("Unknown option: " + setting);
     } else {
         SetStatus("Unknown command: " + command_line_);
     }
@@ -2215,7 +2661,8 @@ void ViEditor::SplitHorizontal() {
     views_.push_back(std::move(new_view));
     active_view_ = static_cast<int>(views_.size()) - 1;
     split_horizontal_ = true;
-    for (auto& v : views_) v.active = false;
+    for (auto& v : views_)
+        v.active = false;
     views_[active_view_].active = true;
     SetStatus("Horizontal split created");
 }
@@ -2227,7 +2674,8 @@ void ViEditor::SplitVertical() {
     views_.push_back(std::move(new_view));
     active_view_ = static_cast<int>(views_.size()) - 1;
     split_horizontal_ = false;
-    for (auto& v : views_) v.active = false;
+    for (auto& v : views_)
+        v.active = false;
     views_[active_view_].active = true;
     SetStatus("Vertical split created");
 }
@@ -2236,7 +2684,8 @@ void ViEditor::CloseSplit() {
     if (views_.size() <= 1) {
         // Close the last view = quit
         if (!active().modified) {
-            if (screen_) screen_->Exit();
+            if (screen_)
+                screen_->Exit();
             return;
         } else
             SetStatus("File modified (use :q! to discard)");
@@ -2245,13 +2694,15 @@ void ViEditor::CloseSplit() {
     views_.erase(views_.begin() + active_view_);
     if (active_view_ >= static_cast<int>(views_.size()))
         active_view_ = static_cast<int>(views_.size()) - 1;
-    for (auto& v : views_) v.active = false;
+    for (auto& v : views_)
+        v.active = false;
     views_[active_view_].active = true;
     SetStatus("Split closed");
 }
 
 void ViEditor::NavigateSplit(char direction) {
-    if (views_.size() <= 1) return;
+    if (views_.size() <= 1)
+        return;
     if (split_horizontal_) {
         if (direction == 'j' || direction == 'k') {
             FocusNextSplit();
@@ -2264,14 +2715,16 @@ void ViEditor::NavigateSplit(char direction) {
 }
 
 void ViEditor::FocusNextSplit() {
-    if (views_.size() <= 1) return;
+    if (views_.size() <= 1)
+        return;
     views_[active_view_].active = false;
     active_view_ = (active_view_ + 1) % views_.size();
     views_[active_view_].active = true;
 }
 
 void ViEditor::FocusPrevSplit() {
-    if (views_.size() <= 1) return;
+    if (views_.size() <= 1)
+        return;
     views_[active_view_].active = false;
     active_view_ = (active_view_ - 1 + views_.size()) % views_.size();
     views_[active_view_].active = true;
@@ -2281,7 +2734,8 @@ void ViEditor::FocusPrevSplit() {
 // Key mappings
 // ============================================================================
 
-void ViEditor::AddMapping(const std::string& from, const std::string& to) {
+void ViEditor::AddMapping(const std::string& from,
+                          const std::string& to) {
     KeyMapping km;
     km.from_str = from;
     km.to_str = to;
@@ -2315,8 +2769,10 @@ void ViEditor::AddMapping(const std::string& from, const std::string& to) {
     key_mappings_.push_back(km);
 }
 
-std::vector<Event> ViEditor::ApplyMappings(const std::vector<Event>& events) {
-    // Simple placeholder – full mapping application would need buffering
+std::vector<Event>
+ViEditor::ApplyMappings(const std::vector<Event>& events) {
+    // Simple placeholder – full mapping application would need
+    // buffering
     return events;
 }
 
@@ -2326,20 +2782,21 @@ std::vector<Event> ViEditor::ApplyMappings(const std::vector<Event>& events) {
 
 Decorator ViEditor::CursorDecorator() const {
     switch (mode_) {
-        case Mode::INSERT:
-            return bgcolor(Color::Green) | color(Color::Black) | bold;
-        case Mode::VISUAL:
-        case Mode::VISUAL_LINE:
-        case Mode::VISUAL_BLOCK:
-            return bgcolor(Color::Magenta) | color(Color::White) | bold;
-        case Mode::OPERATOR_PENDING:
-            return bgcolor(Color::Yellow) | color(Color::Black) | bold;
-        case Mode::COMMAND:
-        case Mode::SEARCH_FORWARD:
-        case Mode::SEARCH_BACKWARD:
-            return bgcolor(Color::GrayDark) | color(Color::White);
-        default: // NORMAL
-            return bgcolor(Color::RGB(160, 82, 45)) | color(Color::White) | bold;
+    case Mode::INSERT:
+        return bgcolor(Color::Green) | color(Color::Black) | bold;
+    case Mode::VISUAL:
+    case Mode::VISUAL_LINE:
+    case Mode::VISUAL_BLOCK:
+        return bgcolor(Color::Magenta) | color(Color::White) | bold;
+    case Mode::OPERATOR_PENDING:
+        return bgcolor(Color::Yellow) | color(Color::Black) | bold;
+    case Mode::COMMAND:
+    case Mode::SEARCH_FORWARD:
+    case Mode::SEARCH_BACKWARD:
+        return bgcolor(Color::GrayDark) | color(Color::White);
+    default: // NORMAL
+        return bgcolor(Color::RGB(160, 82, 45)) | color(Color::White) |
+               bold;
     }
 }
 
@@ -2350,44 +2807,61 @@ Element ViEditor::RenderView(const EditorView& view) const {
     if (split_horizontal_ && views_.size() > 1) {
         int avail = Terminal::Size().dimy - 3;
         int sep_count = static_cast<int>(views_.size()) - 1;
-        visible_rows = (avail - sep_count) / static_cast<int>(views_.size());
+        visible_rows =
+            (avail - sep_count) / static_cast<int>(views_.size());
     }
     int visible_cols = Terminal::Size().dimx;
-    if (visible_cols < 20) visible_cols = 20;
+    if (visible_cols < 20)
+        visible_cols = 20;
 
     // Build a set of highlighted positions for search
-    std::map<std::pair<int,int>, int> hl_lengths; // (row,col) -> match length
+    std::map<std::pair<int, int>, int>
+        hl_lengths; // (row,col) -> match length
     if (view.search_highlight && !view.last_search.empty()) {
         std::string pat = view.last_search;
         try {
-            bool has_upper = std::any_of(pat.begin(), pat.end(), [](char c) { return std::isupper(static_cast<unsigned char>(c)); });
+            bool has_upper =
+                std::any_of(pat.begin(), pat.end(), [](char c) {
+                    return std::isupper(static_cast<unsigned char>(c));
+                });
             auto flags = std::regex::ECMAScript;
-            if (!has_upper) flags |= std::regex::icase;
+            if (!has_upper)
+                flags |= std::regex::icase;
             std::regex re(pat, flags);
-            for (int row = 0; row < static_cast<int>(view.lines.size()); ++row) {
-                std::sregex_iterator it(view.lines[row].begin(), view.lines[row].end(), re);
+            for (int row = 0; row < static_cast<int>(view.lines.size());
+                 ++row) {
+                std::sregex_iterator it(view.lines[row].begin(),
+                                        view.lines[row].end(), re);
                 std::sregex_iterator end;
                 for (; it != end; ++it) {
-                    hl_lengths[{row, static_cast<int>(it->position())}] = static_cast<int>(it->length());
+                    hl_lengths[{row,
+                                static_cast<int>(it->position())}] =
+                        static_cast<int>(it->length());
                 }
             }
-        } catch (...) {}
+        } catch (...) {
+        }
     }
 
     Decorator cursor_deco = CursorDecorator();
-    bool show_cursor = (view.active && mode_ != Mode::COMMAND && mode_ != Mode::SEARCH_FORWARD && mode_ != Mode::SEARCH_BACKWARD);
+    bool show_cursor = (view.active && mode_ != Mode::COMMAND &&
+                        mode_ != Mode::SEARCH_FORWARD &&
+                        mode_ != Mode::SEARCH_BACKWARD);
 
     for (int i = 0; i < visible_rows; ++i) {
         int file_row = view.top_row + i;
-        if (file_row >= 0 && file_row < static_cast<int>(view.lines.size())) {
+        if (file_row >= 0 &&
+            file_row < static_cast<int>(view.lines.size())) {
             const std::string& line = view.lines[file_row];
             bool is_cursor_row = (file_row == view.cursor_row);
             bool in_visual = visual_active_ && view.active;
 
             // ---- Visual character-wise ----
             if (in_visual && mode_ == Mode::VISUAL) {
-                int vis_start = std::min(visual_sel_.anchor_col, view.cursor_col);
-                int vis_end = std::max(visual_sel_.anchor_col, view.cursor_col);
+                int vis_start =
+                    std::min(visual_sel_.anchor_col, view.cursor_col);
+                int vis_end =
+                    std::max(visual_sel_.anchor_col, view.cursor_col);
                 int anchor_row = visual_sel_.anchor_row;
                 int cursor_row_v = view.cursor_row;
                 int sr = std::min(anchor_row, cursor_row_v);
@@ -2399,16 +2873,24 @@ Element ViEditor::RenderView(const EditorView& view) const {
                 Elements parts;
                 for (int c = start_col; c < end_col; ++c) {
                     bool in_sel = false;
-                    if (file_row > sr && file_row < er) in_sel = true;
+                    if (file_row > sr && file_row < er)
+                        in_sel = true;
                     else if (file_row == sr && file_row == er)
                         in_sel = (c >= vis_start && c <= vis_end);
                     else if (file_row == sr)
-                        in_sel = (c >= (anchor_row <= cursor_row_v ? visual_sel_.anchor_col : view.cursor_col));
+                        in_sel = (c >= (anchor_row <= cursor_row_v
+                                            ? visual_sel_.anchor_col
+                                            : view.cursor_col));
                     else if (file_row == er)
-                        in_sel = (c <= (anchor_row <= cursor_row_v ? view.cursor_col : visual_sel_.anchor_col));
+                        in_sel = (c <= (anchor_row <= cursor_row_v
+                                            ? view.cursor_col
+                                            : visual_sel_.anchor_col));
 
-                    bool at_cursor = (is_cursor_row && c == view.cursor_col && show_cursor);
-                    std::string ch_str = (c < line_len) ? std::string(1, line[c]) : " ";
+                    bool at_cursor =
+                        (is_cursor_row && c == view.cursor_col &&
+                         show_cursor);
+                    std::string ch_str =
+                        (c < line_len) ? std::string(1, line[c]) : " ";
 
                     if (at_cursor)
                         parts.push_back(text(ch_str) | cursor_deco);
@@ -2419,10 +2901,12 @@ Element ViEditor::RenderView(const EditorView& view) const {
                 }
                 lines_elements.push_back(hbox(std::move(parts)));
 
-            // ---- Visual line-wise ----
+                // ---- Visual line-wise ----
             } else if (in_visual && mode_ == Mode::VISUAL_LINE) {
-                int sr = std::min(visual_sel_.anchor_row, view.cursor_row);
-                int er = std::max(visual_sel_.anchor_row, view.cursor_row);
+                int sr =
+                    std::min(visual_sel_.anchor_row, view.cursor_row);
+                int er =
+                    std::max(visual_sel_.anchor_row, view.cursor_row);
                 bool in_sel = (file_row >= sr && file_row <= er);
                 int line_len = static_cast<int>(line.size());
                 int start_col = view.left_col;
@@ -2430,8 +2914,11 @@ Element ViEditor::RenderView(const EditorView& view) const {
 
                 Elements parts;
                 for (int c = start_col; c < end_col; ++c) {
-                    bool at_cursor = (is_cursor_row && c == view.cursor_col && show_cursor);
-                    std::string ch_str = (c < line_len) ? std::string(1, line[c]) : " ";
+                    bool at_cursor =
+                        (is_cursor_row && c == view.cursor_col &&
+                         show_cursor);
+                    std::string ch_str =
+                        (c < line_len) ? std::string(1, line[c]) : " ";
 
                     if (at_cursor)
                         parts.push_back(text(ch_str) | cursor_deco);
@@ -2442,12 +2929,16 @@ Element ViEditor::RenderView(const EditorView& view) const {
                 }
                 lines_elements.push_back(hbox(std::move(parts)));
 
-            // ---- Visual block-wise ----
+                // ---- Visual block-wise ----
             } else if (in_visual && mode_ == Mode::VISUAL_BLOCK) {
-                int col_start = std::min(visual_sel_.anchor_col, view.cursor_col);
-                int col_end = std::max(visual_sel_.anchor_col, view.cursor_col);
-                int sr = std::min(visual_sel_.anchor_row, view.cursor_row);
-                int er = std::max(visual_sel_.anchor_row, view.cursor_row);
+                int col_start =
+                    std::min(visual_sel_.anchor_col, view.cursor_col);
+                int col_end =
+                    std::max(visual_sel_.anchor_col, view.cursor_col);
+                int sr =
+                    std::min(visual_sel_.anchor_row, view.cursor_row);
+                int er =
+                    std::max(visual_sel_.anchor_row, view.cursor_row);
                 bool row_in_sel = (file_row >= sr && file_row <= er);
                 int line_len = static_cast<int>(line.size());
                 int start_col = view.left_col;
@@ -2455,9 +2946,13 @@ Element ViEditor::RenderView(const EditorView& view) const {
 
                 Elements parts;
                 for (int c = start_col; c < end_col; ++c) {
-                    bool in_sel = (row_in_sel && c >= col_start && c <= col_end);
-                    bool at_cursor = (is_cursor_row && c == view.cursor_col && show_cursor);
-                    std::string ch_str = (c < line_len) ? std::string(1, line[c]) : " ";
+                    bool in_sel =
+                        (row_in_sel && c >= col_start && c <= col_end);
+                    bool at_cursor =
+                        (is_cursor_row && c == view.cursor_col &&
+                         show_cursor);
+                    std::string ch_str =
+                        (c < line_len) ? std::string(1, line[c]) : " ";
 
                     if (at_cursor)
                         parts.push_back(text(ch_str) | cursor_deco);
@@ -2468,26 +2963,29 @@ Element ViEditor::RenderView(const EditorView& view) const {
                 }
                 lines_elements.push_back(hbox(std::move(parts)));
 
-            // ---- Normal / Insert / Operator-pending ----
+                // ---- Normal / Insert / Operator-pending ----
             } else {
                 int line_len = static_cast<int>(line.size());
                 int start_col = view.left_col;
                 int end_col = start_col + visible_cols;
 
                 // Get syntax highlighting spans for this line (cached)
-                const auto& syntax_spans = view.highlighter.Highlight(file_row, line);
+                const auto& syntax_spans =
+                    view.highlighter.Highlight(file_row, line);
 
                 Elements parts;
                 for (int c = start_col; c < end_col; ++c) {
                     bool hl = false;
                     for (const auto& [pos, len] : hl_lengths) {
-                        if (pos.first == file_row && c >= pos.second && c < pos.second + len) {
+                        if (pos.first == file_row && c >= pos.second &&
+                            c < pos.second + len) {
                             hl = true;
                             break;
                         }
                     }
 
-                    // Check syntax highlight (lower priority than search)
+                    // Check syntax highlight (lower priority than
+                    // search)
                     Decorator syn_deco = nothing;
                     if (!hl) {
                         for (const auto& span : syntax_spans) {
@@ -2498,13 +2996,18 @@ Element ViEditor::RenderView(const EditorView& view) const {
                         }
                     }
 
-                    bool at_cursor = (is_cursor_row && c == view.cursor_col && show_cursor);
-                    std::string ch_str = (c < line_len) ? std::string(1, line[c]) : " ";
+                    bool at_cursor =
+                        (is_cursor_row && c == view.cursor_col &&
+                         show_cursor);
+                    std::string ch_str =
+                        (c < line_len) ? std::string(1, line[c]) : " ";
 
                     if (at_cursor)
                         parts.push_back(text(ch_str) | cursor_deco);
                     else if (hl && !ch_str.empty())
-                        parts.push_back(text(ch_str) | color(Color::White) | bgcolor(Color::RGB(255, 105, 180)));
+                        parts.push_back(
+                            text(ch_str) | color(Color::White) |
+                            bgcolor(Color::RGB(255, 105, 180)));
                     else if (!ch_str.empty())
                         parts.push_back(text(ch_str) | syn_deco);
                 }
@@ -2524,22 +3027,45 @@ Element ViEditor::RenderStatusBar() const {
 
     std::string mode_str;
     switch (mode_) {
-        case Mode::NORMAL:           mode_str = "NORMAL"; break;
-        case Mode::INSERT:           mode_str = "INSERT"; break;
-        case Mode::COMMAND:          mode_str = "COMMAND"; break;
-        case Mode::OPERATOR_PENDING: mode_str = "OP-PENDING"; break;
-        case Mode::SEARCH_FORWARD:   mode_str = "SEARCH /"; break;
-        case Mode::SEARCH_BACKWARD:  mode_str = "SEARCH ?"; break;
-        case Mode::VISUAL:           mode_str = "VISUAL"; break;
-        case Mode::VISUAL_LINE:      mode_str = "VISUAL LINE"; break;
-        case Mode::VISUAL_BLOCK:     mode_str = "VISUAL BLOCK"; break;
+    case Mode::NORMAL:
+        mode_str = "NORMAL";
+        break;
+    case Mode::INSERT:
+        mode_str = "INSERT";
+        break;
+    case Mode::COMMAND:
+        mode_str = "COMMAND";
+        break;
+    case Mode::OPERATOR_PENDING:
+        mode_str = "OP-PENDING";
+        break;
+    case Mode::SEARCH_FORWARD:
+        mode_str = "SEARCH /";
+        break;
+    case Mode::SEARCH_BACKWARD:
+        mode_str = "SEARCH ?";
+        break;
+    case Mode::VISUAL:
+        mode_str = "VISUAL";
+        break;
+    case Mode::VISUAL_LINE:
+        mode_str = "VISUAL LINE";
+        break;
+    case Mode::VISUAL_BLOCK:
+        mode_str = "VISUAL BLOCK";
+        break;
     }
 
     std::string mod_str = view.modified ? "+" : " ";
-    std::string pending = (pending_count_ > 0 ? " [" + std::to_string(pending_count_) + "]" : "");
-    std::string count_str = (count_acc_ > 0 ? " count:" + std::to_string(count_acc_) : "");
+    std::string pending =
+        (pending_count_ > 0
+             ? " [" + std::to_string(pending_count_) + "]"
+             : "");
+    std::string count_str =
+        (count_acc_ > 0 ? " count:" + std::to_string(count_acc_) : "");
 
-    std::string left = mode_str + mod_str + pending + count_str + " " + view.filename +
+    std::string left = mode_str + mod_str + pending + count_str + " " +
+                       view.filename +
                        "  lines:" + std::to_string(view.lines.size());
 
     if (!status_msg_.empty() && status_timeout_ > 0)
@@ -2559,23 +3085,30 @@ Element ViEditor::RenderStatusBar() const {
         right += "  " + std::to_string((cur * 100) / total) + "%";
 
     if (views_.size() > 1)
-        right += " [" + std::to_string(active_view_ + 1) + "/" + std::to_string(views_.size()) + "]";
+        right += " [" + std::to_string(active_view_ + 1) + "/" +
+                 std::to_string(views_.size()) + "]";
 
     int width = Terminal::Size().dimx;
-    int padding = width - static_cast<int>(left.size()) - static_cast<int>(right.size());
-    if (padding < 0) padding = 0;
+    int padding = width - static_cast<int>(left.size()) -
+                  static_cast<int>(right.size());
+    if (padding < 0)
+        padding = 0;
     std::string status = left + std::string(padding, ' ') + right;
-    return text(status) | bold | bgcolor(Color::RGB(160, 82, 45)) | color(Color::White);
+    return text(status) | bold | bgcolor(Color::RGB(160, 82, 45)) |
+           color(Color::White);
 }
 
 Element ViEditor::RenderCommandLine() const {
     if (mode_ == Mode::COMMAND)
         return text(":" + command_line_ + "█") | color(Color::Yellow);
     if (mode_ == Mode::SEARCH_FORWARD)
-        return text("/" + active().search_pattern + "█") | color(Color::Yellow);
+        return text("/" + active().search_pattern + "█") |
+               color(Color::Yellow);
     if (mode_ == Mode::SEARCH_BACKWARD)
-        return text("?" + active().search_pattern + "█") | color(Color::Yellow);
-    // Always occupy a row so the layout doesn't shift when entering command mode
+        return text("?" + active().search_pattern + "█") |
+               color(Color::Yellow);
+    // Always occupy a row so the layout doesn't shift when entering
+    // command mode
     return text("") | size(HEIGHT, EQUAL, 1);
 }
 
@@ -2590,7 +3123,8 @@ Element ViEditor::RenderAllViews() const {
         });
     }
 
-    // For splits, compute exact heights so nothing gets pushed off-screen
+    // For splits, compute exact heights so nothing gets pushed
+    // off-screen
     int total_height = Terminal::Size().dimy;
     int fixed_rows = 3; // main separator(1) + status(1) + cmd(1)
     int avail = total_height - fixed_rows;
@@ -2598,20 +3132,22 @@ Element ViEditor::RenderAllViews() const {
     Elements view_elements;
     if (split_horizontal_) {
         int sep_count = static_cast<int>(views_.size()) - 1;
-        int view_rows = (avail - sep_count) / static_cast<int>(views_.size());
+        int view_rows =
+            (avail - sep_count) / static_cast<int>(views_.size());
         for (size_t i = 0; i < views_.size(); ++i) {
-            view_elements.push_back(RenderView(views_[i]) | size(HEIGHT, EQUAL, view_rows));
+            view_elements.push_back(RenderView(views_[i]) |
+                                    size(HEIGHT, EQUAL, view_rows));
             if (i + 1 < views_.size())
-                view_elements.push_back(separator() | color(Color::RGB(160, 82, 45)));
+                view_elements.push_back(separator() |
+                                        color(Color::RGB(160, 82, 45)));
         }
     } else {
         for (size_t i = 0; i < views_.size(); ++i)
             view_elements.push_back(RenderView(views_[i]) | flex_grow);
     }
 
-    auto views_box = split_horizontal_
-        ? vbox(std::move(view_elements))
-        : hbox(std::move(view_elements));
+    auto views_box = split_horizontal_ ? vbox(std::move(view_elements))
+                                       : hbox(std::move(view_elements));
 
     return vbox({
         views_box | size(HEIGHT, EQUAL, avail),
@@ -2625,24 +3161,37 @@ Element ViEditor::RenderAllViews() const {
 // Event processing
 // ============================================================================
 
-// Convert a key description string (like "w", "<CR>", "<Space>") to an Event
+// Convert a key description string (like "w", "<CR>", "<Space>") to an
+// Event
 static Event EventFromString(const std::string& s) {
     if (s.size() == 1 && s[0] >= 32 && s[0] <= 126)
         return Event::Character(s[0]);
-    if (s == "<CR>")          return Event::Return;
-    if (s == "<Esc>")         return Event::Escape;
-    if (s == "<Tab>")         return Event::Tab;
-    if (s == "<BS>")          return Event::Backspace;
-    if (s == "<Del>")         return Event::Delete;
-    if (s == "<Space>")       return Event::Character(' ');
-    if (s == "<Up>")          return Event::ArrowUp;
-    if (s == "<Down>")        return Event::ArrowDown;
-    if (s == "<Left>")        return Event::ArrowLeft;
-    if (s == "<Right>")       return Event::ArrowRight;
+    if (s == "<CR>")
+        return Event::Return;
+    if (s == "<Esc>")
+        return Event::Escape;
+    if (s == "<Tab>")
+        return Event::Tab;
+    if (s == "<BS>")
+        return Event::Backspace;
+    if (s == "<Del>")
+        return Event::Delete;
+    if (s == "<Space>")
+        return Event::Character(' ');
+    if (s == "<Up>")
+        return Event::ArrowUp;
+    if (s == "<Down>")
+        return Event::ArrowDown;
+    if (s == "<Left>")
+        return Event::ArrowLeft;
+    if (s == "<Right>")
+        return Event::ArrowRight;
     if (s.size() == 3 && s[0] == 'C' && s[1] == '-') {
         char c = s[2];
-        if (c >= 'A' && c <= 'Z') return Event::Special({static_cast<char>(c - 'A' + 1)});
-        if (c >= 'a' && c <= 'z') return Event::Special({static_cast<char>(c - 'a' + 1)});
+        if (c >= 'A' && c <= 'Z')
+            return Event::Special({static_cast<char>(c - 'A' + 1)});
+        if (c >= 'a' && c <= 'z')
+            return Event::Special({static_cast<char>(c - 'a' + 1)});
     }
     // Fallback: treat as character
     if (s.size() == 1)
@@ -2652,34 +3201,51 @@ static Event EventFromString(const std::string& s) {
 
 // Convert an Event to a string key description for mapping matching
 static std::string EventToMappingStr(const Event& e) {
-    if (e == Event::Return)     return "<CR>";
-    if (e == Event::Escape)     return "<Esc>";
-    if (e == Event::Tab)        return "<Tab>";
-    if (e == Event::Backspace)  return "<BS>";
-    if (e == Event::Delete)     return "<Del>";
-    if (e == Event::ArrowUp)    return "<Up>";
-    if (e == Event::ArrowDown)  return "<Down>";
-    if (e == Event::ArrowLeft)  return "<Left>";
-    if (e == Event::ArrowRight) return "<Right>";
+    if (e == Event::Return)
+        return "<CR>";
+    if (e == Event::Escape)
+        return "<Esc>";
+    if (e == Event::Tab)
+        return "<Tab>";
+    if (e == Event::Backspace)
+        return "<BS>";
+    if (e == Event::Delete)
+        return "<Del>";
+    if (e == Event::ArrowUp)
+        return "<Up>";
+    if (e == Event::ArrowDown)
+        return "<Down>";
+    if (e == Event::ArrowLeft)
+        return "<Left>";
+    if (e == Event::ArrowRight)
+        return "<Right>";
     if (e.is_character()) {
         std::string c = e.character();
         if (c.size() == 1) {
             unsigned char uc = static_cast<unsigned char>(c[0]);
-            if (uc == ' ') return "<Space>";
+            if (uc == ' ')
+                return "<Space>";
             if (uc < 32) {
                 char name = 'A' + uc - 1;
                 return std::string("C-") + name;
             }
-            if (uc == 127) return "<BS>";
+            if (uc == 127)
+                return "<BS>";
             return c;
         }
     }
-    if (e == Event::Special({23}))  return "C-W";
-    if (e == Event::Special({22}))  return "C-V";
-    if (e == Event::Special({4}))   return "C-D";
-    if (e == Event::Special({21}))  return "C-U";
-    if (e == Event::Special({18}))  return "C-R";
-    if (e == Event::Special({15}))  return "C-O";
+    if (e == Event::Special({23}))
+        return "C-W";
+    if (e == Event::Special({22}))
+        return "C-V";
+    if (e == Event::Special({4}))
+        return "C-D";
+    if (e == Event::Special({21}))
+        return "C-U";
+    if (e == Event::Special({18}))
+        return "C-R";
+    if (e == Event::Special({15}))
+        return "C-O";
     return "";
 }
 
@@ -2692,18 +3258,21 @@ bool ViEditor::OnEvent(Event event) {
     }
 
     // Tick status timeout
-    if (status_timeout_ > 0) --status_timeout_;
+    if (status_timeout_ > 0)
+        --status_timeout_;
 
     // Global Escape to return to normal mode
     if (event == Event::Escape) {
         if (mode_ != Mode::NORMAL && mode_ != Mode::INSERT) {
-            if (mode_ == Mode::SEARCH_FORWARD || mode_ == Mode::SEARCH_BACKWARD) {
+            if (mode_ == Mode::SEARCH_FORWARD ||
+                mode_ == Mode::SEARCH_BACKWARD) {
                 // On escape from search, go back to original position
                 active().search_matches.clear();
                 active().search_pattern.clear();
                 active().current_match_idx = -1;
             }
-            if (mode_ == Mode::VISUAL || mode_ == Mode::VISUAL_LINE || mode_ == Mode::VISUAL_BLOCK) {
+            if (mode_ == Mode::VISUAL || mode_ == Mode::VISUAL_LINE ||
+                mode_ == Mode::VISUAL_BLOCK) {
                 ExitVisual();
             }
             mode_ = Mode::NORMAL;
@@ -2713,13 +3282,16 @@ bool ViEditor::OnEvent(Event event) {
             count_acc_ = 0;
             return true;
         }
-        // In insert mode, escape goes to normal (already handled in OnInsertEvent)
+        // In insert mode, escape goes to normal (already handled in
+        // OnInsertEvent)
     }
 
     // ---- Key mapping buffer (normal mode only) ----
-    // Skip when a multi-key command is already pending (gg, zz, f, etc.)
-    bool pending = g_pending_ || z_pending_ || Z_pending_ || find_pending_ ||
-                   text_obj_pending_ || ctrl_w_pending_ || (ctrl_o_pending_ != 0);
+    // Skip when a multi-key command is already pending (gg, zz, f,
+    // etc.)
+    bool pending = g_pending_ || z_pending_ || Z_pending_ ||
+                   find_pending_ || text_obj_pending_ ||
+                   ctrl_w_pending_ || (ctrl_o_pending_ != 0);
     if (mode_ == Mode::NORMAL && !key_mappings_.empty() && !pending) {
         std::string key_str = EventToMappingStr(event);
         if (!key_str.empty()) {
@@ -2728,10 +3300,12 @@ bool ViEditor::OnEvent(Event event) {
             // Check against all mappings
             bool prefix_match = false;
             for (const auto& km : key_mappings_) {
-                if (km.from_seq.size() < mapping_buffer_.size()) continue;
+                if (km.from_seq.size() < mapping_buffer_.size())
+                    continue;
                 bool match = true;
                 for (size_t i = 0; i < mapping_buffer_.size(); ++i) {
-                    if (i >= km.from_seq.size() || mapping_buffer_[i] != km.from_seq[i]) {
+                    if (i >= km.from_seq.size() ||
+                        mapping_buffer_[i] != km.from_seq[i]) {
                         match = false;
                         break;
                     }
@@ -2741,13 +3315,15 @@ bool ViEditor::OnEvent(Event event) {
                         // Exact match: inject mapped events
                         mapping_buffer_.clear();
                         for (const auto& s : km.to_seq)
-                            injected_events_.push_back(EventFromString(s));
+                            injected_events_.push_back(
+                                EventFromString(s));
                         return true;
                     }
                     prefix_match = true;
                 }
             }
-            if (prefix_match) return true; // keep buffering
+            if (prefix_match)
+                return true; // keep buffering
 
             // No match: replay buffered events
             for (const auto& s : mapping_buffer_)
@@ -2762,7 +3338,8 @@ bool ViEditor::OnEvent(Event event) {
         }
     }
 
-    // Ctrl-O state machine: 1 = enter NORMAL now, 2 = return to INSERT after command
+    // Ctrl-O state machine: 1 = enter NORMAL now, 2 = return to INSERT
+    // after command
     if (ctrl_o_pending_ == 1) {
         ctrl_o_pending_ = 2;
         mode_ = Mode::NORMAL;
@@ -2771,22 +3348,40 @@ bool ViEditor::OnEvent(Event event) {
     // Dispatch based on mode
     bool handled = false;
     switch (mode_) {
-        case Mode::NORMAL:           handled = OnNormalEvent(event); break;
-        case Mode::INSERT:           handled = OnInsertEvent(event); break;
-        case Mode::COMMAND:          handled = OnCommandEvent(event); break;
-        case Mode::OPERATOR_PENDING: handled = OnOperatorPendingEvent(event); break;
-        case Mode::SEARCH_FORWARD:
-        case Mode::SEARCH_BACKWARD:  handled = OnSearchEvent(event); break;
-        case Mode::VISUAL:           handled = OnVisualEvent(event); break;
-        case Mode::VISUAL_LINE:      handled = OnVisualLineEvent(event); break;
-        case Mode::VISUAL_BLOCK:     handled = OnVisualBlockEvent(event); break;
+    case Mode::NORMAL:
+        handled = OnNormalEvent(event);
+        break;
+    case Mode::INSERT:
+        handled = OnInsertEvent(event);
+        break;
+    case Mode::COMMAND:
+        handled = OnCommandEvent(event);
+        break;
+    case Mode::OPERATOR_PENDING:
+        handled = OnOperatorPendingEvent(event);
+        break;
+    case Mode::SEARCH_FORWARD:
+    case Mode::SEARCH_BACKWARD:
+        handled = OnSearchEvent(event);
+        break;
+    case Mode::VISUAL:
+        handled = OnVisualEvent(event);
+        break;
+    case Mode::VISUAL_LINE:
+        handled = OnVisualLineEvent(event);
+        break;
+    case Mode::VISUAL_BLOCK:
+        handled = OnVisualBlockEvent(event);
+        break;
     }
 
-    // Ctrl-O: after one normal-mode command completes, return to insert mode.
-    // Only switch back if no pending state (gg, f, etc.) is waiting.
-    if (ctrl_o_pending_ == 2 && mode_ == Mode::NORMAL &&
-        !g_pending_ && !z_pending_ && !Z_pending_ && !find_pending_ &&
-        !text_obj_pending_ && !ctrl_w_pending_ && !block_change_pending_) {
+    // Ctrl-O: after one normal-mode command completes, return to insert
+    // mode. Only switch back if no pending state (gg, f, etc.) is
+    // waiting.
+    if (ctrl_o_pending_ == 2 && mode_ == Mode::NORMAL && !g_pending_ &&
+        !z_pending_ && !Z_pending_ && !find_pending_ &&
+        !text_obj_pending_ && !ctrl_w_pending_ &&
+        !block_change_pending_) {
         ctrl_o_pending_ = 0;
         mode_ = Mode::INSERT;
     }
@@ -2801,11 +3396,14 @@ bool ViEditor::OnNormalEvent(Event event) {
     // Accumulate digits for count
     if (event.is_character()) {
         std::string ch = event.character();
-        if (ch.size() == 1 && std::isdigit(static_cast<unsigned char>(ch[0])) && ch[0] != '0') {
+        if (ch.size() == 1 &&
+            std::isdigit(static_cast<unsigned char>(ch[0])) &&
+            ch[0] != '0') {
             count_acc_ = count_acc_ * 10 + (ch[0] - '0');
             return true;
         }
-        // '0' is special: if no count accumulated, it goes to start of line
+        // '0' is special: if no count accumulated, it goes to start of
+        // line
         if (ch.size() == 1 && ch[0] == '0' && count_acc_ == 0) {
             view.cursor_col = 0;
             UpdateScroll(view);
@@ -2822,15 +3420,35 @@ bool ViEditor::OnNormalEvent(Event event) {
             std::string ch = event.character();
             if (ch.size() == 1) {
                 char c = ch[0];
-                if (c == 'h' || c == 'j' || c == 'k' || c == 'l') { NavigateSplit(c); count_acc_ = 0; return true; }
-                else if (c == 'w') { FocusNextSplit(); count_acc_ = 0; return true; }
-                else if (c == 'W') { FocusPrevSplit(); count_acc_ = 0; return true; }
-                else if (c == 'v') { SplitVertical(); count_acc_ = 0; return true; }
-                else if (c == 's') { SplitHorizontal(); count_acc_ = 0; return true; }
-                else if (c == 'q' || c == 'c') { CloseSplit(); count_acc_ = 0; return true; }
+                if (c == 'h' || c == 'j' || c == 'k' || c == 'l') {
+                    NavigateSplit(c);
+                    count_acc_ = 0;
+                    return true;
+                } else if (c == 'w') {
+                    FocusNextSplit();
+                    count_acc_ = 0;
+                    return true;
+                } else if (c == 'W') {
+                    FocusPrevSplit();
+                    count_acc_ = 0;
+                    return true;
+                } else if (c == 'v') {
+                    SplitVertical();
+                    count_acc_ = 0;
+                    return true;
+                } else if (c == 's') {
+                    SplitHorizontal();
+                    count_acc_ = 0;
+                    return true;
+                } else if (c == 'q' || c == 'c') {
+                    CloseSplit();
+                    count_acc_ = 0;
+                    return true;
+                }
             }
         }
-        // Invalid follow-up key: cancel Ctrl-W, let it fall through to normal processing
+        // Invalid follow-up key: cancel Ctrl-W, let it fall through to
+        // normal processing
         count_acc_ = 0;
     }
     if (event == Event::Special({23})) { // Ctrl-W
@@ -2849,7 +3467,9 @@ bool ViEditor::OnNormalEvent(Event event) {
                 if (c == 'g') {
                     // gg: go to first line (or line specified by count)
                     if (count_acc_ > 0) {
-                        view.cursor_row = std::min(count_acc_ - 1, static_cast<int>(view.lines.size()) - 1);
+                        view.cursor_row = std::min(
+                            count_acc_ - 1,
+                            static_cast<int>(view.lines.size()) - 1);
                     } else {
                         view.cursor_row = 0;
                     }
@@ -2876,20 +3496,25 @@ bool ViEditor::OnNormalEvent(Event event) {
                 if (split_horizontal_ && views_.size() > 1) {
                     int avail = Terminal::Size().dimy - 3;
                     int sep_count = static_cast<int>(views_.size()) - 1;
-                    visible = (avail - sep_count) / static_cast<int>(views_.size());
+                    visible = (avail - sep_count) /
+                              static_cast<int>(views_.size());
                 }
                 if (c == 'z') {
                     // zz: center cursor
-                    view.top_row = std::max(0, view.cursor_row - visible / 2);
+                    view.top_row =
+                        std::max(0, view.cursor_row - visible / 2);
                 } else if (c == 't') {
                     // zt: cursor at top
                     view.top_row = view.cursor_row;
                 } else if (c == 'b') {
                     // zb: cursor at bottom
-                    view.top_row = std::max(0, view.cursor_row - visible + 1);
+                    view.top_row =
+                        std::max(0, view.cursor_row - visible + 1);
                 }
-                int max_top = std::max(0, static_cast<int>(view.lines.size()) - visible);
-                if (view.top_row > max_top) view.top_row = max_top;
+                int max_top = std::max(
+                    0, static_cast<int>(view.lines.size()) - visible);
+                if (view.top_row > max_top)
+                    view.top_row = max_top;
                 UpdateScroll(view);
                 return true;
             }
@@ -2908,11 +3533,13 @@ bool ViEditor::OnNormalEvent(Event event) {
                 if (c == 'Z') {
                     // ZZ: save and quit
                     SaveFile(view);
-                    if (screen_) screen_->Exit();
+                    if (screen_)
+                        screen_->Exit();
                     return true;
                 } else if (c == 'Q') {
                     // ZQ: quit without saving
-                    if (screen_) screen_->Exit();
+                    if (screen_)
+                        screen_->Exit();
                     return true;
                 }
             }
@@ -2930,9 +3557,11 @@ bool ViEditor::OnNormalEvent(Event event) {
                 last_find_char_ = target;
                 CursorPos pos;
                 if (last_find_forward_) {
-                    pos = MotionFindForward(view, target, count, last_find_till_);
+                    pos = MotionFindForward(view, target, count,
+                                            last_find_till_);
                 } else {
-                    pos = MotionFindBackward(view, target, count, last_find_till_);
+                    pos = MotionFindBackward(view, target, count,
+                                             last_find_till_);
                 }
                 view.cursor_row = pos.row;
                 view.cursor_col = pos.col;
@@ -2951,51 +3580,52 @@ bool ViEditor::OnNormalEvent(Event event) {
         if (ch.size() == 1) {
             char c = ch[0];
             switch (c) {
-                case 'd':
-                    pending_op_ = OperatorType::DELETE_OP;
-                    pending_count_ = count;
-                    mode_ = Mode::OPERATOR_PENDING;
-                    prev_mode_ = Mode::NORMAL;
-                    count_acc_ = 0;
-                    return true;
-                case 'c':
-                    pending_op_ = OperatorType::CHANGE;
-                    pending_count_ = count;
-                    mode_ = Mode::OPERATOR_PENDING;
-                    prev_mode_ = Mode::NORMAL;
-                    count_acc_ = 0;
-                    return true;
-                case 'y':
-                    pending_op_ = OperatorType::YANK;
-                    pending_count_ = count;
-                    mode_ = Mode::OPERATOR_PENDING;
-                    prev_mode_ = Mode::NORMAL;
-                    count_acc_ = 0;
-                    return true;
-                case '>':
-                    pending_op_ = OperatorType::INDENT;
-                    pending_count_ = count;
-                    mode_ = Mode::OPERATOR_PENDING;
-                    prev_mode_ = Mode::NORMAL;
-                    count_acc_ = 0;
-                    return true;
-                case '<':
-                    pending_op_ = OperatorType::OUTDENT;
-                    pending_count_ = count;
-                    mode_ = Mode::OPERATOR_PENDING;
-                    prev_mode_ = Mode::NORMAL;
-                    count_acc_ = 0;
-                    return true;
-                case '~':
-                    {
-                        Range r = {view.cursor_row, view.cursor_col, view.cursor_row, view.cursor_col + count};
-                        ExecuteOperator(view, OperatorType::TILDE_CASE, r);
-                        MoveCursor(view, 0, count);
-                        count_acc_ = 0;
-                        return true;
-                    }
-                // Special: dd, cc, yy (double-tap = linewise)
-                default: break;
+            case 'd':
+                pending_op_ = OperatorType::DELETE_OP;
+                pending_count_ = count;
+                mode_ = Mode::OPERATOR_PENDING;
+                prev_mode_ = Mode::NORMAL;
+                count_acc_ = 0;
+                return true;
+            case 'c':
+                pending_op_ = OperatorType::CHANGE;
+                pending_count_ = count;
+                mode_ = Mode::OPERATOR_PENDING;
+                prev_mode_ = Mode::NORMAL;
+                count_acc_ = 0;
+                return true;
+            case 'y':
+                pending_op_ = OperatorType::YANK;
+                pending_count_ = count;
+                mode_ = Mode::OPERATOR_PENDING;
+                prev_mode_ = Mode::NORMAL;
+                count_acc_ = 0;
+                return true;
+            case '>':
+                pending_op_ = OperatorType::INDENT;
+                pending_count_ = count;
+                mode_ = Mode::OPERATOR_PENDING;
+                prev_mode_ = Mode::NORMAL;
+                count_acc_ = 0;
+                return true;
+            case '<':
+                pending_op_ = OperatorType::OUTDENT;
+                pending_count_ = count;
+                mode_ = Mode::OPERATOR_PENDING;
+                prev_mode_ = Mode::NORMAL;
+                count_acc_ = 0;
+                return true;
+            case '~': {
+                Range r = {view.cursor_row, view.cursor_col,
+                           view.cursor_row, view.cursor_col + count};
+                ExecuteOperator(view, OperatorType::TILDE_CASE, r);
+                MoveCursor(view, 0, count);
+                count_acc_ = 0;
+                return true;
+            }
+            // Special: dd, cc, yy (double-tap = linewise)
+            default:
+                break;
             }
         }
     }
@@ -3007,20 +3637,95 @@ bool ViEditor::OnNormalEvent(Event event) {
             char c = ch[0];
 
             // Basic motions
-            if (c == 'h') { for (int i = 0; i < count; ++i) MoveCursor(view, 0, -1); count_acc_ = 0; return true; }
-            if (c == 'j') { for (int i = 0; i < count; ++i) MoveCursor(view, 1, 0); count_acc_ = 0; return true; }
-            if (c == 'k') { for (int i = 0; i < count; ++i) MoveCursor(view, -1, 0); count_acc_ = 0; return true; }
-            if (c == 'l') { for (int i = 0; i < count; ++i) MoveCursor(view, 0, 1); count_acc_ = 0; return true; }
-            if (c == '$') { view.cursor_col = static_cast<int>(view.lines[view.cursor_row].size()); UpdateScroll(view); count_acc_ = 0; return true; }
-            if (c == '^') { auto pos = MotionFirstNonBlank(view); view.cursor_row = pos.row; view.cursor_col = pos.col; UpdateScroll(view); count_acc_ = 0; return true; }
+            if (c == 'h') {
+                for (int i = 0; i < count; ++i)
+                    MoveCursor(view, 0, -1);
+                count_acc_ = 0;
+                return true;
+            }
+            if (c == 'j') {
+                for (int i = 0; i < count; ++i)
+                    MoveCursor(view, 1, 0);
+                count_acc_ = 0;
+                return true;
+            }
+            if (c == 'k') {
+                for (int i = 0; i < count; ++i)
+                    MoveCursor(view, -1, 0);
+                count_acc_ = 0;
+                return true;
+            }
+            if (c == 'l') {
+                for (int i = 0; i < count; ++i)
+                    MoveCursor(view, 0, 1);
+                count_acc_ = 0;
+                return true;
+            }
+            if (c == '$') {
+                view.cursor_col = static_cast<int>(
+                    view.lines[view.cursor_row].size());
+                UpdateScroll(view);
+                count_acc_ = 0;
+                return true;
+            }
+            if (c == '^') {
+                auto pos = MotionFirstNonBlank(view);
+                view.cursor_row = pos.row;
+                view.cursor_col = pos.col;
+                UpdateScroll(view);
+                count_acc_ = 0;
+                return true;
+            }
 
             // Word motions
-            if (c == 'w') { auto pos = MotionWordForward(view, count); view.cursor_row = pos.row; view.cursor_col = pos.col; UpdateScroll(view); count_acc_ = 0; return true; }
-            if (c == 'b') { auto pos = MotionWordBackward(view, count); view.cursor_row = pos.row; view.cursor_col = pos.col; UpdateScroll(view); count_acc_ = 0; return true; }
-            if (c == 'e') { auto pos = MotionWordEndForward(view, count); view.cursor_row = pos.row; view.cursor_col = pos.col; UpdateScroll(view); count_acc_ = 0; return true; }
-            if (c == 'W') { auto pos = MotionBigWordForward(view, count); view.cursor_row = pos.row; view.cursor_col = pos.col; UpdateScroll(view); count_acc_ = 0; return true; }
-            if (c == 'B') { auto pos = MotionBigWordBackward(view, count); view.cursor_row = pos.row; view.cursor_col = pos.col; UpdateScroll(view); count_acc_ = 0; return true; }
-            if (c == 'E') { auto pos = MotionBigWordEndForward(view, count); view.cursor_row = pos.row; view.cursor_col = pos.col; UpdateScroll(view); count_acc_ = 0; return true; }
+            if (c == 'w') {
+                auto pos = MotionWordForward(view, count);
+                view.cursor_row = pos.row;
+                view.cursor_col = pos.col;
+                UpdateScroll(view);
+                count_acc_ = 0;
+                return true;
+            }
+            if (c == 'b') {
+                auto pos = MotionWordBackward(view, count);
+                view.cursor_row = pos.row;
+                view.cursor_col = pos.col;
+                UpdateScroll(view);
+                count_acc_ = 0;
+                return true;
+            }
+            if (c == 'e') {
+                auto pos = MotionWordEndForward(view, count);
+                view.cursor_row = pos.row;
+                view.cursor_col = pos.col;
+                UpdateScroll(view);
+                count_acc_ = 0;
+                return true;
+            }
+            if (c == 'W') {
+                auto pos = MotionBigWordForward(view, count);
+                view.cursor_row = pos.row;
+                view.cursor_col = pos.col;
+                UpdateScroll(view);
+                count_acc_ = 0;
+                return true;
+            }
+            if (c == 'B') {
+                auto pos = MotionBigWordBackward(view, count);
+                view.cursor_row = pos.row;
+                view.cursor_col = pos.col;
+                UpdateScroll(view);
+                count_acc_ = 0;
+                return true;
+            }
+            if (c == 'E') {
+                auto pos = MotionBigWordEndForward(view, count);
+                view.cursor_row = pos.row;
+                view.cursor_col = pos.col;
+                UpdateScroll(view);
+                count_acc_ = 0;
+                return true;
+            }
 
             // g prefix
             if (c == 'g') {
@@ -3045,9 +3750,12 @@ bool ViEditor::OnNormalEvent(Event event) {
 
             if (c == 'G') {
                 if (count_acc_ > 0) {
-                    view.cursor_row = std::min(count - 1, static_cast<int>(view.lines.size()) - 1);
+                    view.cursor_row = std::min(
+                        count - 1,
+                        static_cast<int>(view.lines.size()) - 1);
                 } else {
-                    view.cursor_row = static_cast<int>(view.lines.size()) - 1;
+                    view.cursor_row =
+                        static_cast<int>(view.lines.size()) - 1;
                 }
                 view.cursor_col = 0;
                 UpdateScroll(view);
@@ -3068,13 +3776,18 @@ bool ViEditor::OnNormalEvent(Event event) {
             // ; and , repeat last f/t/F/T
             if (c == ';' || c == ',') {
                 if (last_find_char_ != 0) {
-                    bool forward = (c == ';') ? last_find_forward_ : !last_find_forward_;
+                    bool forward = (c == ';') ? last_find_forward_
+                                              : !last_find_forward_;
                     CursorPos pos;
                     if (forward)
-                        pos = MotionFindForward(view, last_find_char_, count, last_find_till_);
+                        pos = MotionFindForward(view, last_find_char_,
+                                                count, last_find_till_);
                     else
-                        pos = MotionFindBackward(view, last_find_char_, count, last_find_till_);
-                    view.cursor_row = pos.row; view.cursor_col = pos.col;
+                        pos =
+                            MotionFindBackward(view, last_find_char_,
+                                               count, last_find_till_);
+                    view.cursor_row = pos.row;
+                    view.cursor_col = pos.col;
                 }
                 UpdateScroll(view);
                 count_acc_ = 0;
@@ -3084,24 +3797,41 @@ bool ViEditor::OnNormalEvent(Event event) {
             // % - match bracket
             if (c == '%') {
                 auto pos = MotionPercentMatch(view);
-                view.cursor_row = pos.row; view.cursor_col = pos.col;
+                view.cursor_row = pos.row;
+                view.cursor_col = pos.col;
                 UpdateScroll(view);
                 count_acc_ = 0;
                 return true;
             }
 
             // { and } paragraph motions
-            if (c == '}') { auto pos = MotionParagraphForward(view, count); view.cursor_row = pos.row; view.cursor_col = pos.col; UpdateScroll(view); count_acc_ = 0; return true; }
-            if (c == '{') { auto pos = MotionParagraphBackward(view, count); view.cursor_row = pos.row; view.cursor_col = pos.col; UpdateScroll(view); count_acc_ = 0; return true; }
+            if (c == '}') {
+                auto pos = MotionParagraphForward(view, count);
+                view.cursor_row = pos.row;
+                view.cursor_col = pos.col;
+                UpdateScroll(view);
+                count_acc_ = 0;
+                return true;
+            }
+            if (c == '{') {
+                auto pos = MotionParagraphBackward(view, count);
+                view.cursor_row = pos.row;
+                view.cursor_col = pos.col;
+                UpdateScroll(view);
+                count_acc_ = 0;
+                return true;
+            }
 
             // x - delete char
             if (c == 'x') {
-                Range r = {view.cursor_row, view.cursor_col, view.cursor_row, view.cursor_col + count};
+                Range r = {view.cursor_row, view.cursor_col,
+                           view.cursor_row, view.cursor_col + count};
                 PushUndo(view, view.cursor_row, 1);
                 // Before deleting, yank
                 active().yank_register = ExtractRange(view, r);
                 active().yank_linewise = false;
-                for (int i = 0; i < count; ++i) DeleteChar(view);
+                for (int i = 0; i < count; ++i)
+                    DeleteChar(view);
                 UpdateScroll(view);
                 RecordChange(OperatorType::DELETE_OP, r, false);
                 count_acc_ = 0;
@@ -3109,23 +3839,86 @@ bool ViEditor::OnNormalEvent(Event event) {
             }
 
             // i, a, I, A, o, O - enter insert mode
-            if (c == 'i') { BeginInsertUndo(view); mode_ = Mode::INSERT; recording_insert_ = true; insert_recording_.clear(); count_acc_ = 0; return true; }
-            if (c == 'a') { BeginInsertUndo(view); MoveCursor(view, 0, 1); count_acc_ = 0; mode_ = Mode::INSERT; recording_insert_ = true; insert_recording_.clear(); return true; }
-            if (c == 'I') { BeginInsertUndo(view); view.cursor_col = MotionFirstNonBlank(view).col; UpdateScroll(view); count_acc_ = 0; mode_ = Mode::INSERT; recording_insert_ = true; insert_recording_.clear(); return true; }
-            if (c == 'A') { BeginInsertUndo(view); view.cursor_col = static_cast<int>(view.lines[view.cursor_row].size()); UpdateScroll(view); count_acc_ = 0; mode_ = Mode::INSERT; recording_insert_ = true; insert_recording_.clear(); return true; }
-            if (c == 'o') { BeginInsertUndo(view); view.lines.insert(view.lines.begin() + view.cursor_row + 1, ""); ++view.cursor_row; view.cursor_col = 0; view.modified = true; UpdateScroll(view); count_acc_ = 0; mode_ = Mode::INSERT; recording_insert_ = true; insert_recording_.clear(); return true; }
-            if (c == 'O') { BeginInsertUndo(view); view.lines.insert(view.lines.begin() + view.cursor_row, ""); view.cursor_col = 0; view.modified = true; UpdateScroll(view); count_acc_ = 0; mode_ = Mode::INSERT; recording_insert_ = true; insert_recording_.clear(); return true; }
+            if (c == 'i') {
+                BeginInsertUndo(view);
+                mode_ = Mode::INSERT;
+                recording_insert_ = true;
+                insert_recording_.clear();
+                count_acc_ = 0;
+                return true;
+            }
+            if (c == 'a') {
+                BeginInsertUndo(view);
+                MoveCursor(view, 0, 1);
+                count_acc_ = 0;
+                mode_ = Mode::INSERT;
+                recording_insert_ = true;
+                insert_recording_.clear();
+                return true;
+            }
+            if (c == 'I') {
+                BeginInsertUndo(view);
+                view.cursor_col = MotionFirstNonBlank(view).col;
+                UpdateScroll(view);
+                count_acc_ = 0;
+                mode_ = Mode::INSERT;
+                recording_insert_ = true;
+                insert_recording_.clear();
+                return true;
+            }
+            if (c == 'A') {
+                BeginInsertUndo(view);
+                view.cursor_col = static_cast<int>(
+                    view.lines[view.cursor_row].size());
+                UpdateScroll(view);
+                count_acc_ = 0;
+                mode_ = Mode::INSERT;
+                recording_insert_ = true;
+                insert_recording_.clear();
+                return true;
+            }
+            if (c == 'o') {
+                BeginInsertUndo(view);
+                view.lines.insert(
+                    view.lines.begin() + view.cursor_row + 1, "");
+                ++view.cursor_row;
+                view.cursor_col = 0;
+                view.modified = true;
+                UpdateScroll(view);
+                count_acc_ = 0;
+                mode_ = Mode::INSERT;
+                recording_insert_ = true;
+                insert_recording_.clear();
+                return true;
+            }
+            if (c == 'O') {
+                BeginInsertUndo(view);
+                view.lines.insert(view.lines.begin() + view.cursor_row,
+                                  "");
+                view.cursor_col = 0;
+                view.modified = true;
+                UpdateScroll(view);
+                count_acc_ = 0;
+                mode_ = Mode::INSERT;
+                recording_insert_ = true;
+                insert_recording_.clear();
+                return true;
+            }
 
             // p, P - put/paste
             if (c == 'p') {
                 for (int i = 0; i < count; ++i)
-                    PutAfter(view, active().yank_register, active().yank_linewise, active().yank_blockwise);
+                    PutAfter(view, active().yank_register,
+                             active().yank_linewise,
+                             active().yank_blockwise);
                 count_acc_ = 0;
                 return true;
             }
             if (c == 'P') {
                 for (int i = 0; i < count; ++i)
-                    PutBefore(view, active().yank_register, active().yank_linewise, active().yank_blockwise);
+                    PutBefore(view, active().yank_register,
+                              active().yank_linewise,
+                              active().yank_blockwise);
                 count_acc_ = 0;
                 return true;
             }
@@ -3147,19 +3940,56 @@ bool ViEditor::OnNormalEvent(Event event) {
             }
 
             // Visual modes
-            if (c == 'v') { EnterVisual(false, false); count_acc_ = 0; return true; }
-            if (c == 'V') { EnterVisual(true, false); count_acc_ = 0; return true; }
+            if (c == 'v') {
+                EnterVisual(false, false);
+                count_acc_ = 0;
+                return true;
+            }
+            if (c == 'V') {
+                EnterVisual(true, false);
+                count_acc_ = 0;
+                return true;
+            }
 
             // Search
-            if (c == '/') { StartSearch(true); count_acc_ = 0; return true; }
-            if (c == '?') { StartSearch(false); count_acc_ = 0; return true; }
-            if (c == '*') { SearchWordUnderCursor(true); count_acc_ = 0; return true; }
-            if (c == '#') { SearchWordUnderCursor(false); count_acc_ = 0; return true; }
-            if (c == 'n') { SearchNext(true); count_acc_ = 0; return true; }
-            if (c == 'N') { SearchNext(false); count_acc_ = 0; return true; }
+            if (c == '/') {
+                StartSearch(true);
+                count_acc_ = 0;
+                return true;
+            }
+            if (c == '?') {
+                StartSearch(false);
+                count_acc_ = 0;
+                return true;
+            }
+            if (c == '*') {
+                SearchWordUnderCursor(true);
+                count_acc_ = 0;
+                return true;
+            }
+            if (c == '#') {
+                SearchWordUnderCursor(false);
+                count_acc_ = 0;
+                return true;
+            }
+            if (c == 'n') {
+                SearchNext(true);
+                count_acc_ = 0;
+                return true;
+            }
+            if (c == 'N') {
+                SearchNext(false);
+                count_acc_ = 0;
+                return true;
+            }
 
             // Command mode
-            if (c == ':') { mode_ = Mode::COMMAND; command_line_.clear(); count_acc_ = 0; return true; }
+            if (c == ':') {
+                mode_ = Mode::COMMAND;
+                command_line_.clear();
+                count_acc_ = 0;
+                return true;
+            }
         }
     }
 
@@ -3173,12 +4003,20 @@ bool ViEditor::OnNormalEvent(Event event) {
     // Ctrl-D / Ctrl-U: scroll half-page down/up
     if (event == Event::Special({4}) || event == Event::Special({21})) {
         int half = std::max(1, Terminal::Size().dimy / 2);
-        int dir = (event == Event::Special({4})) ? 1 : -1;  // 4=Ctrl-D(down), 21=Ctrl-U(up)
+        int dir = (event == Event::Special({4}))
+                      ? 1
+                      : -1; // 4=Ctrl-D(down), 21=Ctrl-U(up)
         int amount = half * count;
-        view.cursor_row = std::clamp(view.cursor_row + dir * amount, 0, static_cast<int>(view.lines.size()) - 1);
-        view.cursor_col = std::min(view.cursor_col, static_cast<int>(view.lines[view.cursor_row].size()));
+        view.cursor_row =
+            std::clamp(view.cursor_row + dir * amount, 0,
+                       static_cast<int>(view.lines.size()) - 1);
+        view.cursor_col = std::min(
+            view.cursor_col,
+            static_cast<int>(view.lines[view.cursor_row].size()));
         // Scroll the view so cursor stays centered-ish
-        view.top_row = std::clamp(view.cursor_row - half / 2, 0, std::max(0, static_cast<int>(view.lines.size()) - half));
+        view.top_row = std::clamp(
+            view.cursor_row - half / 2, 0,
+            std::max(0, static_cast<int>(view.lines.size()) - half));
         UpdateScroll(view);
         count_acc_ = 0;
         return true;
@@ -3196,9 +4034,15 @@ bool ViEditor::OnNormalEvent(Event event) {
     if (event == Event::Return) {
         int half = std::max(1, Terminal::Size().dimy / 2);
         int amount = half * count;
-        view.cursor_row = std::clamp(view.cursor_row + amount, 0, static_cast<int>(view.lines.size()) - 1);
-        view.cursor_col = std::min(view.cursor_col, static_cast<int>(view.lines[view.cursor_row].size()));
-        view.top_row = std::clamp(view.cursor_row - half / 2, 0, std::max(0, static_cast<int>(view.lines.size()) - half));
+        view.cursor_row =
+            std::clamp(view.cursor_row + amount, 0,
+                       static_cast<int>(view.lines.size()) - 1);
+        view.cursor_col = std::min(
+            view.cursor_col,
+            static_cast<int>(view.lines[view.cursor_row].size()));
+        view.top_row = std::clamp(
+            view.cursor_row - half / 2, 0,
+            std::max(0, static_cast<int>(view.lines.size()) - half));
         UpdateScroll(view);
         count_acc_ = 0;
         return true;
@@ -3208,19 +4052,41 @@ bool ViEditor::OnNormalEvent(Event event) {
     if (event == Event::Backspace) {
         int half = std::max(1, Terminal::Size().dimy / 2);
         int amount = half * count;
-        view.cursor_row = std::clamp(view.cursor_row - amount, 0, static_cast<int>(view.lines.size()) - 1);
-        view.cursor_col = std::min(view.cursor_col, static_cast<int>(view.lines[view.cursor_row].size()));
-        view.top_row = std::clamp(view.cursor_row - half / 2, 0, std::max(0, static_cast<int>(view.lines.size()) - half));
+        view.cursor_row =
+            std::clamp(view.cursor_row - amount, 0,
+                       static_cast<int>(view.lines.size()) - 1);
+        view.cursor_col = std::min(
+            view.cursor_col,
+            static_cast<int>(view.lines[view.cursor_row].size()));
+        view.top_row = std::clamp(
+            view.cursor_row - half / 2, 0,
+            std::max(0, static_cast<int>(view.lines.size()) - half));
         UpdateScroll(view);
         count_acc_ = 0;
         return true;
     }
 
     // Arrow keys
-    if (event == Event::ArrowLeft)  { MoveCursor(view, 0, -count); count_acc_ = 0; return true; }
-    if (event == Event::ArrowDown)  { MoveCursor(view, count, 0); count_acc_ = 0; return true; }
-    if (event == Event::ArrowUp)    { MoveCursor(view, -count, 0); count_acc_ = 0; return true; }
-    if (event == Event::ArrowRight) { MoveCursor(view, 0, count); count_acc_ = 0; return true; }
+    if (event == Event::ArrowLeft) {
+        MoveCursor(view, 0, -count);
+        count_acc_ = 0;
+        return true;
+    }
+    if (event == Event::ArrowDown) {
+        MoveCursor(view, count, 0);
+        count_acc_ = 0;
+        return true;
+    }
+    if (event == Event::ArrowUp) {
+        MoveCursor(view, -count, 0);
+        count_acc_ = 0;
+        return true;
+    }
+    if (event == Event::ArrowRight) {
+        MoveCursor(view, 0, count);
+        count_acc_ = 0;
+        return true;
+    }
 
     count_acc_ = 0;
     return false;
@@ -3239,7 +4105,8 @@ bool ViEditor::OnInsertEvent(Event event) {
             recording_insert_ = false;
         }
         // Move cursor left by 1 (Vim behavior: exit insert moves left)
-        if (view.cursor_col > 0) --view.cursor_col;
+        if (view.cursor_col > 0)
+            --view.cursor_col;
         return true;
     }
 
@@ -3247,28 +4114,33 @@ bool ViEditor::OnInsertEvent(Event event) {
         std::string& line = view.lines[view.cursor_row];
         std::string rest = line.substr(view.cursor_col);
         line.erase(view.cursor_col);
-        view.lines.insert(view.lines.begin() + view.cursor_row + 1, rest);
+        view.lines.insert(view.lines.begin() + view.cursor_row + 1,
+                          rest);
         ++view.cursor_row;
         view.cursor_col = 0;
         view.modified = true;
         UpdateScroll(view);
-        if (recording_insert_) insert_recording_ += '\n';
+        if (recording_insert_)
+            insert_recording_ += '\n';
         return true;
     }
 
     if (event == Event::Backspace || event == Event::Delete) {
         if (view.cursor_col > 0) {
-            if (recording_insert_ && !insert_recording_.empty()) insert_recording_.pop_back();
+            if (recording_insert_ && !insert_recording_.empty())
+                insert_recording_.pop_back();
             view.lines[view.cursor_row].erase(view.cursor_col - 1, 1);
             --view.cursor_col;
             view.modified = true;
         } else if (view.cursor_row > 0) {
-            if (recording_insert_ && !insert_recording_.empty()) insert_recording_.pop_back();
+            if (recording_insert_ && !insert_recording_.empty())
+                insert_recording_.pop_back();
             std::string& prev = view.lines[view.cursor_row - 1];
             std::string& curr = view.lines[view.cursor_row];
             view.cursor_col = static_cast<int>(prev.size());
             prev += curr;
-            view.lines.erase(view.lines.begin() + view.cursor_row, view.lines.begin() + view.cursor_row + 1);
+            view.lines.erase(view.lines.begin() + view.cursor_row,
+                             view.lines.begin() + view.cursor_row + 1);
             --view.cursor_row;
             view.modified = true;
             UpdateScroll(view);
@@ -3276,61 +4148,68 @@ bool ViEditor::OnInsertEvent(Event event) {
         return true;
     }
 
-    // Ctrl-O: execute one normal-mode command, then return to insert mode.
-    // Set to 1 = enter NORMAL on next event; 2 = return to INSERT after command.
+    // Ctrl-O: execute one normal-mode command, then return to insert
+    // mode. Set to 1 = enter NORMAL on next event; 2 = return to INSERT
+    // after command.
     if (event == Event::Special({15})) {
         ctrl_o_pending_ = 1;
         return true;
     }
 
-    // Ctrl-W: delete word before cursor (FTXUI sends Ctrl+key as Event::Special)
+    // Ctrl-W: delete word before cursor (FTXUI sends Ctrl+key as
+    // Event::Special)
     if (event == Event::Special({23})) {
         if (view.cursor_col == 0) {
             // At start of line: join with previous line
             if (view.cursor_row > 0) {
-                    PushUndo(view, view.cursor_row - 1, 2);
-                    std::string& prev = view.lines[view.cursor_row - 1];
-                    std::string& curr = view.lines[view.cursor_row];
-                    view.cursor_col = static_cast<int>(prev.size());
-                    prev += curr;
-                    view.lines.erase(view.lines.begin() + view.cursor_row, view.lines.begin() + view.cursor_row + 1);
-                    --view.cursor_row;
-                    view.modified = true;
-                    UpdateScroll(view);
-                }
-            } else {
-                PushUndo(view, view.cursor_row, 1);
-                std::string& line = view.lines[view.cursor_row];
-                int pos = view.cursor_col;
-                // Skip whitespace before cursor
-                while (pos > 0 && IsSpaceOrTab(line[pos - 1]))
-                    --pos;
-                // Delete word characters (letters, digits, underscore)
-                int word_start = pos;
-                while (word_start > 0 && IsWordChar(line[word_start - 1]))
-                    --word_start;
-                if (word_start == pos) {
-                    // No word chars found: delete the single non-word, non-space character before cursor
-                    if (pos > 0 && !IsSpaceOrTab(line[pos - 1]))
-                        --pos;
-                } else {
-                    pos = word_start;
-                }
-                int count = view.cursor_col - pos;
-                if (count > 0) {
-                    line.erase(pos, count);
-                    view.cursor_col = pos;
-                    view.modified = true;
-                }
+                PushUndo(view, view.cursor_row - 1, 2);
+                std::string& prev = view.lines[view.cursor_row - 1];
+                std::string& curr = view.lines[view.cursor_row];
+                view.cursor_col = static_cast<int>(prev.size());
+                prev += curr;
+                view.lines.erase(view.lines.begin() + view.cursor_row,
+                                 view.lines.begin() + view.cursor_row +
+                                     1);
+                --view.cursor_row;
+                view.modified = true;
+                UpdateScroll(view);
             }
-            return true;
+        } else {
+            PushUndo(view, view.cursor_row, 1);
+            std::string& line = view.lines[view.cursor_row];
+            int pos = view.cursor_col;
+            // Skip whitespace before cursor
+            while (pos > 0 && IsSpaceOrTab(line[pos - 1]))
+                --pos;
+            // Delete word characters (letters, digits, underscore)
+            int word_start = pos;
+            while (word_start > 0 && IsWordChar(line[word_start - 1]))
+                --word_start;
+            if (word_start == pos) {
+                // No word chars found: delete the single non-word,
+                // non-space character before cursor
+                if (pos > 0 && !IsSpaceOrTab(line[pos - 1]))
+                    --pos;
+            } else {
+                pos = word_start;
+            }
+            int count = view.cursor_col - pos;
+            if (count > 0) {
+                line.erase(pos, count);
+                view.cursor_col = pos;
+                view.modified = true;
+            }
         }
+        return true;
+    }
 
     if (event == Event::Tab) {
-        // Expand tab to 4 spaces so it appears correctly in the terminal
+        // Expand tab to 4 spaces so it appears correctly in the
+        // terminal
         for (int t = 0; t < 4; ++t) {
             InsertChar(view, ' ');
-            if (recording_insert_) insert_recording_ += ' ';
+            if (recording_insert_)
+                insert_recording_ += ' ';
         }
         UpdateScroll(view);
         return true;
@@ -3341,7 +4220,8 @@ bool ViEditor::OnInsertEvent(Event event) {
         if (ch.size() == 1 && ch[0] >= 32 && ch[0] <= 126) {
             InsertChar(view, ch[0]);
             UpdateScroll(view);
-            if (recording_insert_) insert_recording_ += ch[0];
+            if (recording_insert_)
+                insert_recording_ += ch[0];
         }
         return true;
     }
@@ -3379,16 +4259,20 @@ bool ViEditor::OnCommandEvent(Event event) {
 bool ViEditor::OnOperatorPendingEvent(Event event) {
     EditorView& view = active();
 
-    // Text object pending: we already captured 'i' or 'a', now get the object char
+    // Text object pending: we already captured 'i' or 'a', now get the
+    // object char
     if (text_obj_pending_) {
         text_obj_pending_ = false;
         if (event.is_character()) {
             std::string ch = event.character();
             if (ch.size() == 1) {
                 char obj_char = ch[0];
-                TextObjectType tobj = ParseTextObject(obj_char, text_obj_inner_);
+                TextObjectType tobj =
+                    ParseTextObject(obj_char, text_obj_inner_);
                 if (tobj != TextObjectType::NONE) {
-                    int total_count = (pending_count_ > 0 ? pending_count_ : 1) * (motion_count_ > 0 ? motion_count_ : 1);
+                    int total_count =
+                        (pending_count_ > 0 ? pending_count_ : 1) *
+                        (motion_count_ > 0 ? motion_count_ : 1);
                     for (int i = 0; i < total_count; ++i) {
                         Range r = GetRangeForTextObject(view, tobj);
                         ExecuteOperator(view, pending_op_, r);
@@ -3416,12 +4300,16 @@ bool ViEditor::OnOperatorPendingEvent(Event event) {
             if (ch.size() == 1) {
                 char target = ch[0];
                 last_find_char_ = target;
-                int total_count = (pending_count_ > 0 ? pending_count_ : 1) * (motion_count_ > 0 ? motion_count_ : 1);
+                int total_count =
+                    (pending_count_ > 0 ? pending_count_ : 1) *
+                    (motion_count_ > 0 ? motion_count_ : 1);
                 CursorPos pos;
                 if (last_find_forward_)
-                    pos = MotionFindForward(view, target, total_count, last_find_till_);
+                    pos = MotionFindForward(view, target, total_count,
+                                            last_find_till_);
                 else
-                    pos = MotionFindBackward(view, target, total_count, last_find_till_);
+                    pos = MotionFindBackward(view, target, total_count,
+                                             last_find_till_);
                 ApplyOperatorMotion(view, pos);
                 motion_count_ = 0;
                 pending_count_ = 0;
@@ -3438,7 +4326,9 @@ bool ViEditor::OnOperatorPendingEvent(Event event) {
     // Accumulate digits (motion count)
     if (event.is_character()) {
         std::string ch = event.character();
-        if (ch.size() == 1 && std::isdigit(static_cast<unsigned char>(ch[0])) && ch[0] != '0') {
+        if (ch.size() == 1 &&
+            std::isdigit(static_cast<unsigned char>(ch[0])) &&
+            ch[0] != '0') {
             motion_count_ = motion_count_ * 10 + (ch[0] - '0');
             return true;
         }
@@ -3459,8 +4349,11 @@ bool ViEditor::OnOperatorPendingEvent(Event event) {
                 (c == 'y' && pending_op_ == OperatorType::YANK)) {
                 // Linewise operation
                 int start_row = view.cursor_row;
-                int end_row = std::min(start_row + final_count - 1, static_cast<int>(view.lines.size()) - 1);
-                Range r = {start_row, 0, end_row, 0}; // 0 end_col signals linewise
+                int end_row =
+                    std::min(start_row + final_count - 1,
+                             static_cast<int>(view.lines.size()) - 1);
+                Range r = {start_row, 0, end_row,
+                           0}; // 0 end_col signals linewise
                 ExecuteOperator(view, pending_op_, r);
                 pending_op_ = OperatorType::NONE;
                 pending_count_ = 0;
@@ -3476,31 +4369,180 @@ bool ViEditor::OnOperatorPendingEvent(Event event) {
             }
 
             // Motions
-            if (c == 'h') { for (int i = 0; i < final_count; ++i) { CursorPos pos = MotionLeft(view); ApplyOperatorMotion(view, pos); if (pending_op_ == OperatorType::NONE) break; } motion_count_ = 0; pending_count_ = 0; return true; }
-            if (c == 'j') { for (int i = 0; i < final_count; ++i) { CursorPos pos = MotionDown(view); ApplyOperatorMotion(view, pos); if (pending_op_ == OperatorType::NONE) break; } motion_count_ = 0; pending_count_ = 0; return true; }
-            if (c == 'k') { for (int i = 0; i < final_count; ++i) { CursorPos pos = MotionUp(view); ApplyOperatorMotion(view, pos); if (pending_op_ == OperatorType::NONE) break; } motion_count_ = 0; pending_count_ = 0; return true; }
-            if (c == 'l') { for (int i = 0; i < final_count; ++i) { CursorPos pos = MotionRight(view); ApplyOperatorMotion(view, pos); if (pending_op_ == OperatorType::NONE) break; } motion_count_ = 0; pending_count_ = 0; return true; }
-            if (c == 'w') { for (int i = 0; i < final_count; ++i) { CursorPos pos = MotionWordForward(view); ApplyOperatorMotion(view, pos); if (pending_op_ == OperatorType::NONE) break; } motion_count_ = 0; pending_count_ = 0; return true; }
-            if (c == 'b') { for (int i = 0; i < final_count; ++i) { CursorPos pos = MotionWordBackward(view); ApplyOperatorMotion(view, pos); if (pending_op_ == OperatorType::NONE) break; } motion_count_ = 0; pending_count_ = 0; return true; }
-            if (c == 'e') { for (int i = 0; i < final_count; ++i) { CursorPos pos = MotionWordEndForward(view); ApplyOperatorMotion(view, pos); if (pending_op_ == OperatorType::NONE) break; } motion_count_ = 0; pending_count_ = 0; return true; }
-            if (c == 'W') { for (int i = 0; i < final_count; ++i) { CursorPos pos = MotionBigWordForward(view); ApplyOperatorMotion(view, pos); if (pending_op_ == OperatorType::NONE) break; } motion_count_ = 0; pending_count_ = 0; return true; }
-            if (c == 'B') { for (int i = 0; i < final_count; ++i) { CursorPos pos = MotionBigWordBackward(view); ApplyOperatorMotion(view, pos); if (pending_op_ == OperatorType::NONE) break; } motion_count_ = 0; pending_count_ = 0; return true; }
-            if (c == 'E') { for (int i = 0; i < final_count; ++i) { CursorPos pos = MotionBigWordEndForward(view); ApplyOperatorMotion(view, pos); if (pending_op_ == OperatorType::NONE) break; } motion_count_ = 0; pending_count_ = 0; return true; }
-            if (c == '0') { CursorPos pos = MotionLineStart(view); ApplyOperatorMotion(view, pos); motion_count_ = 0; pending_count_ = 0; return true; }
-            if (c == '$') { CursorPos pos = MotionLineEnd(view); ApplyOperatorMotion(view, pos); motion_count_ = 0; pending_count_ = 0; return true; }
-            if (c == '^') { CursorPos pos = MotionFirstNonBlank(view); ApplyOperatorMotion(view, pos); motion_count_ = 0; pending_count_ = 0; return true; }
+            if (c == 'h') {
+                for (int i = 0; i < final_count; ++i) {
+                    CursorPos pos = MotionLeft(view);
+                    ApplyOperatorMotion(view, pos);
+                    if (pending_op_ == OperatorType::NONE)
+                        break;
+                }
+                motion_count_ = 0;
+                pending_count_ = 0;
+                return true;
+            }
+            if (c == 'j') {
+                for (int i = 0; i < final_count; ++i) {
+                    CursorPos pos = MotionDown(view);
+                    ApplyOperatorMotion(view, pos);
+                    if (pending_op_ == OperatorType::NONE)
+                        break;
+                }
+                motion_count_ = 0;
+                pending_count_ = 0;
+                return true;
+            }
+            if (c == 'k') {
+                for (int i = 0; i < final_count; ++i) {
+                    CursorPos pos = MotionUp(view);
+                    ApplyOperatorMotion(view, pos);
+                    if (pending_op_ == OperatorType::NONE)
+                        break;
+                }
+                motion_count_ = 0;
+                pending_count_ = 0;
+                return true;
+            }
+            if (c == 'l') {
+                for (int i = 0; i < final_count; ++i) {
+                    CursorPos pos = MotionRight(view);
+                    ApplyOperatorMotion(view, pos);
+                    if (pending_op_ == OperatorType::NONE)
+                        break;
+                }
+                motion_count_ = 0;
+                pending_count_ = 0;
+                return true;
+            }
+            if (c == 'w') {
+                for (int i = 0; i < final_count; ++i) {
+                    CursorPos pos = MotionWordForward(view);
+                    ApplyOperatorMotion(view, pos);
+                    if (pending_op_ == OperatorType::NONE)
+                        break;
+                }
+                motion_count_ = 0;
+                pending_count_ = 0;
+                return true;
+            }
+            if (c == 'b') {
+                for (int i = 0; i < final_count; ++i) {
+                    CursorPos pos = MotionWordBackward(view);
+                    ApplyOperatorMotion(view, pos);
+                    if (pending_op_ == OperatorType::NONE)
+                        break;
+                }
+                motion_count_ = 0;
+                pending_count_ = 0;
+                return true;
+            }
+            if (c == 'e') {
+                for (int i = 0; i < final_count; ++i) {
+                    CursorPos pos = MotionWordEndForward(view);
+                    ApplyOperatorMotion(view, pos);
+                    if (pending_op_ == OperatorType::NONE)
+                        break;
+                }
+                motion_count_ = 0;
+                pending_count_ = 0;
+                return true;
+            }
+            if (c == 'W') {
+                for (int i = 0; i < final_count; ++i) {
+                    CursorPos pos = MotionBigWordForward(view);
+                    ApplyOperatorMotion(view, pos);
+                    if (pending_op_ == OperatorType::NONE)
+                        break;
+                }
+                motion_count_ = 0;
+                pending_count_ = 0;
+                return true;
+            }
+            if (c == 'B') {
+                for (int i = 0; i < final_count; ++i) {
+                    CursorPos pos = MotionBigWordBackward(view);
+                    ApplyOperatorMotion(view, pos);
+                    if (pending_op_ == OperatorType::NONE)
+                        break;
+                }
+                motion_count_ = 0;
+                pending_count_ = 0;
+                return true;
+            }
+            if (c == 'E') {
+                for (int i = 0; i < final_count; ++i) {
+                    CursorPos pos = MotionBigWordEndForward(view);
+                    ApplyOperatorMotion(view, pos);
+                    if (pending_op_ == OperatorType::NONE)
+                        break;
+                }
+                motion_count_ = 0;
+                pending_count_ = 0;
+                return true;
+            }
+            if (c == '0') {
+                CursorPos pos = MotionLineStart(view);
+                ApplyOperatorMotion(view, pos);
+                motion_count_ = 0;
+                pending_count_ = 0;
+                return true;
+            }
+            if (c == '$') {
+                CursorPos pos = MotionLineEnd(view);
+                ApplyOperatorMotion(view, pos);
+                motion_count_ = 0;
+                pending_count_ = 0;
+                return true;
+            }
+            if (c == '^') {
+                CursorPos pos = MotionFirstNonBlank(view);
+                ApplyOperatorMotion(view, pos);
+                motion_count_ = 0;
+                pending_count_ = 0;
+                return true;
+            }
             if (c == 'G') {
                 CursorPos pos;
                 if (motion_count_ > 0)
-                    pos = {std::min(final_count - 1, static_cast<int>(view.lines.size()) - 1), 0};
+                    pos = {std::min(
+                               final_count - 1,
+                               static_cast<int>(view.lines.size()) - 1),
+                           0};
                 else
                     pos = MotionFileEnd(view);
                 ApplyOperatorMotion(view, pos);
-                motion_count_ = 0; pending_count_ = 0; return true;
+                motion_count_ = 0;
+                pending_count_ = 0;
+                return true;
             }
-            if (c == '%') { CursorPos pos = MotionPercentMatch(view); ApplyOperatorMotion(view, pos); motion_count_ = 0; pending_count_ = 0; return true; }
-            if (c == '}') { for (int i = 0; i < final_count; ++i) { CursorPos pos = MotionParagraphForward(view); ApplyOperatorMotion(view, pos); if (pending_op_ == OperatorType::NONE) break; } motion_count_ = 0; pending_count_ = 0; return true; }
-            if (c == '{') { for (int i = 0; i < final_count; ++i) { CursorPos pos = MotionParagraphBackward(view); ApplyOperatorMotion(view, pos); if (pending_op_ == OperatorType::NONE) break; } motion_count_ = 0; pending_count_ = 0; return true; }
+            if (c == '%') {
+                CursorPos pos = MotionPercentMatch(view);
+                ApplyOperatorMotion(view, pos);
+                motion_count_ = 0;
+                pending_count_ = 0;
+                return true;
+            }
+            if (c == '}') {
+                for (int i = 0; i < final_count; ++i) {
+                    CursorPos pos = MotionParagraphForward(view);
+                    ApplyOperatorMotion(view, pos);
+                    if (pending_op_ == OperatorType::NONE)
+                        break;
+                }
+                motion_count_ = 0;
+                pending_count_ = 0;
+                return true;
+            }
+            if (c == '{') {
+                for (int i = 0; i < final_count; ++i) {
+                    CursorPos pos = MotionParagraphBackward(view);
+                    ApplyOperatorMotion(view, pos);
+                    if (pending_op_ == OperatorType::NONE)
+                        break;
+                }
+                motion_count_ = 0;
+                pending_count_ = 0;
+                return true;
+            }
 
             // f, F, t, T need next char
             if (c == 'f' || c == 'F' || c == 't' || c == 'T') {
@@ -3569,9 +4611,15 @@ bool ViEditor::OnVisualEvent(Event event) {
     if (event == Event::Special({4}) || event == Event::Special({21})) {
         int half = std::max(1, Terminal::Size().dimy / 2);
         int dir = (event == Event::Special({4})) ? 1 : -1;
-        view.cursor_row = std::clamp(view.cursor_row + dir * half, 0, static_cast<int>(view.lines.size()) - 1);
-        view.cursor_col = std::min(view.cursor_col, static_cast<int>(view.lines[view.cursor_row].size()));
-        view.top_row = std::clamp(view.cursor_row - half / 2, 0, std::max(0, static_cast<int>(view.lines.size()) - half));
+        view.cursor_row =
+            std::clamp(view.cursor_row + dir * half, 0,
+                       static_cast<int>(view.lines.size()) - 1);
+        view.cursor_col = std::min(
+            view.cursor_col,
+            static_cast<int>(view.lines[view.cursor_row].size()));
+        view.top_row = std::clamp(
+            view.cursor_row - half / 2, 0,
+            std::max(0, static_cast<int>(view.lines.size()) - half));
         UpdateScroll(view);
         return true;
     }
@@ -3581,32 +4629,121 @@ bool ViEditor::OnVisualEvent(Event event) {
         std::string ch = event.character();
         if (ch.size() == 1) {
             char c = ch[0];
-            if (c == 'd') { ApplyOperatorToSelection(view, OperatorType::DELETE_OP); return true; }
-            if (c == 'c') { ApplyOperatorToSelection(view, OperatorType::CHANGE); return true; }
-            if (c == 'y') { ApplyOperatorToSelection(view, OperatorType::YANK); return true; }
-            if (c == '>') { ApplyOperatorToSelection(view, OperatorType::INDENT); return true; }
-            if (c == '<') { ApplyOperatorToSelection(view, OperatorType::OUTDENT); return true; }
-            if (c == '~') { ApplyOperatorToSelection(view, OperatorType::TILDE_CASE); return true; }
+            if (c == 'd') {
+                ApplyOperatorToSelection(view, OperatorType::DELETE_OP);
+                return true;
+            }
+            if (c == 'c') {
+                ApplyOperatorToSelection(view, OperatorType::CHANGE);
+                return true;
+            }
+            if (c == 'y') {
+                ApplyOperatorToSelection(view, OperatorType::YANK);
+                return true;
+            }
+            if (c == '>') {
+                ApplyOperatorToSelection(view, OperatorType::INDENT);
+                return true;
+            }
+            if (c == '<') {
+                ApplyOperatorToSelection(view, OperatorType::OUTDENT);
+                return true;
+            }
+            if (c == '~') {
+                ApplyOperatorToSelection(view,
+                                         OperatorType::TILDE_CASE);
+                return true;
+            }
         }
     }
 
     // Motions extend selection
-    if (event == Event::Character('h')) { MoveCursor(view, 0, -1); visual_sel_.cursor_row = view.cursor_row; visual_sel_.cursor_col = view.cursor_col; return true; }
-    if (event == Event::Character('j')) { MoveCursor(view, 1, 0);  visual_sel_.cursor_row = view.cursor_row; visual_sel_.cursor_col = view.cursor_col; return true; }
-    if (event == Event::Character('k')) { MoveCursor(view, -1, 0); visual_sel_.cursor_row = view.cursor_row; visual_sel_.cursor_col = view.cursor_col; return true; }
-    if (event == Event::Character('l')) { MoveCursor(view, 0, 1);  visual_sel_.cursor_row = view.cursor_row; visual_sel_.cursor_col = view.cursor_col; return true; }
-    if (event == Event::Character('w')) { auto pos = MotionWordForward(view); view.cursor_row = pos.row; view.cursor_col = pos.col; UpdateScroll(view); return true; }
-    if (event == Event::Character('b')) { auto pos = MotionWordBackward(view); view.cursor_row = pos.row; view.cursor_col = pos.col; UpdateScroll(view); return true; }
-    if (event == Event::Character('e')) { auto pos = MotionWordEndForward(view); view.cursor_row = pos.row; view.cursor_col = pos.col; UpdateScroll(view); return true; }
-    if (event == Event::Character('$')) { view.cursor_col = static_cast<int>(view.lines[view.cursor_row].size()); UpdateScroll(view); return true; }
-    if (event == Event::Character('0')) { view.cursor_col = 0; UpdateScroll(view); return true; }
-    if (event == Event::Character('^')) { auto pos = MotionFirstNonBlank(view); view.cursor_row = pos.row; view.cursor_col = pos.col; UpdateScroll(view); return true; }
-    if (event == Event::Character('G')) { view.cursor_row = static_cast<int>(view.lines.size()) - 1; view.cursor_col = 0; UpdateScroll(view); return true; }
+    if (event == Event::Character('h')) {
+        MoveCursor(view, 0, -1);
+        visual_sel_.cursor_row = view.cursor_row;
+        visual_sel_.cursor_col = view.cursor_col;
+        return true;
+    }
+    if (event == Event::Character('j')) {
+        MoveCursor(view, 1, 0);
+        visual_sel_.cursor_row = view.cursor_row;
+        visual_sel_.cursor_col = view.cursor_col;
+        return true;
+    }
+    if (event == Event::Character('k')) {
+        MoveCursor(view, -1, 0);
+        visual_sel_.cursor_row = view.cursor_row;
+        visual_sel_.cursor_col = view.cursor_col;
+        return true;
+    }
+    if (event == Event::Character('l')) {
+        MoveCursor(view, 0, 1);
+        visual_sel_.cursor_row = view.cursor_row;
+        visual_sel_.cursor_col = view.cursor_col;
+        return true;
+    }
+    if (event == Event::Character('w')) {
+        auto pos = MotionWordForward(view);
+        view.cursor_row = pos.row;
+        view.cursor_col = pos.col;
+        UpdateScroll(view);
+        return true;
+    }
+    if (event == Event::Character('b')) {
+        auto pos = MotionWordBackward(view);
+        view.cursor_row = pos.row;
+        view.cursor_col = pos.col;
+        UpdateScroll(view);
+        return true;
+    }
+    if (event == Event::Character('e')) {
+        auto pos = MotionWordEndForward(view);
+        view.cursor_row = pos.row;
+        view.cursor_col = pos.col;
+        UpdateScroll(view);
+        return true;
+    }
+    if (event == Event::Character('$')) {
+        view.cursor_col =
+            static_cast<int>(view.lines[view.cursor_row].size());
+        UpdateScroll(view);
+        return true;
+    }
+    if (event == Event::Character('0')) {
+        view.cursor_col = 0;
+        UpdateScroll(view);
+        return true;
+    }
+    if (event == Event::Character('^')) {
+        auto pos = MotionFirstNonBlank(view);
+        view.cursor_row = pos.row;
+        view.cursor_col = pos.col;
+        UpdateScroll(view);
+        return true;
+    }
+    if (event == Event::Character('G')) {
+        view.cursor_row = static_cast<int>(view.lines.size()) - 1;
+        view.cursor_col = 0;
+        UpdateScroll(view);
+        return true;
+    }
 
-    if (event == Event::ArrowLeft)  { MoveCursor(view, 0, -1); return true; }
-    if (event == Event::ArrowDown)  { MoveCursor(view, 1, 0);  return true; }
-    if (event == Event::ArrowUp)    { MoveCursor(view, -1, 0); return true; }
-    if (event == Event::ArrowRight) { MoveCursor(view, 0, 1);  return true; }
+    if (event == Event::ArrowLeft) {
+        MoveCursor(view, 0, -1);
+        return true;
+    }
+    if (event == Event::ArrowDown) {
+        MoveCursor(view, 1, 0);
+        return true;
+    }
+    if (event == Event::ArrowUp) {
+        MoveCursor(view, -1, 0);
+        return true;
+    }
+    if (event == Event::ArrowRight) {
+        MoveCursor(view, 0, 1);
+        return true;
+    }
 
     return false;
 }
@@ -3624,9 +4761,13 @@ bool ViEditor::OnVisualLineEvent(Event event) {
     if (event == Event::Special({4}) || event == Event::Special({21})) {
         int half = std::max(1, Terminal::Size().dimy / 2);
         int dir = (event == Event::Special({4})) ? 1 : -1;
-        view.cursor_row = std::clamp(view.cursor_row + dir * half, 0, static_cast<int>(view.lines.size()) - 1);
+        view.cursor_row =
+            std::clamp(view.cursor_row + dir * half, 0,
+                       static_cast<int>(view.lines.size()) - 1);
         view.cursor_col = 0;
-        view.top_row = std::clamp(view.cursor_row - half / 2, 0, std::max(0, static_cast<int>(view.lines.size()) - half));
+        view.top_row = std::clamp(
+            view.cursor_row - half / 2, 0,
+            std::max(0, static_cast<int>(view.lines.size()) - half));
         UpdateScroll(view);
         return true;
     }
@@ -3635,21 +4776,56 @@ bool ViEditor::OnVisualLineEvent(Event event) {
         std::string ch = event.character();
         if (ch.size() == 1) {
             char c = ch[0];
-            if (c == 'd') { ApplyOperatorToSelection(view, OperatorType::DELETE_OP); return true; }
-            if (c == 'c') { ApplyOperatorToSelection(view, OperatorType::CHANGE); return true; }
-            if (c == 'y') { ApplyOperatorToSelection(view, OperatorType::YANK); return true; }
-            if (c == '>') { ApplyOperatorToSelection(view, OperatorType::INDENT); return true; }
-            if (c == '<') { ApplyOperatorToSelection(view, OperatorType::OUTDENT); return true; }
-            if (c == 'V') { ExitVisual(); return true; } // toggle off
+            if (c == 'd') {
+                ApplyOperatorToSelection(view, OperatorType::DELETE_OP);
+                return true;
+            }
+            if (c == 'c') {
+                ApplyOperatorToSelection(view, OperatorType::CHANGE);
+                return true;
+            }
+            if (c == 'y') {
+                ApplyOperatorToSelection(view, OperatorType::YANK);
+                return true;
+            }
+            if (c == '>') {
+                ApplyOperatorToSelection(view, OperatorType::INDENT);
+                return true;
+            }
+            if (c == '<') {
+                ApplyOperatorToSelection(view, OperatorType::OUTDENT);
+                return true;
+            }
+            if (c == 'V') {
+                ExitVisual();
+                return true;
+            } // toggle off
         }
     }
 
-    if (event == Event::Character('j')) { MoveCursor(view, 1, 0); return true; }
-    if (event == Event::Character('k')) { MoveCursor(view, -1, 0); return true; }
-    if (event == Event::Character('G')) { view.cursor_row = static_cast<int>(view.lines.size()) - 1; view.cursor_col = 0; UpdateScroll(view); return true; }
+    if (event == Event::Character('j')) {
+        MoveCursor(view, 1, 0);
+        return true;
+    }
+    if (event == Event::Character('k')) {
+        MoveCursor(view, -1, 0);
+        return true;
+    }
+    if (event == Event::Character('G')) {
+        view.cursor_row = static_cast<int>(view.lines.size()) - 1;
+        view.cursor_col = 0;
+        UpdateScroll(view);
+        return true;
+    }
 
-    if (event == Event::ArrowDown) { MoveCursor(view, 1, 0); return true; }
-    if (event == Event::ArrowUp)   { MoveCursor(view, -1, 0); return true; }
+    if (event == Event::ArrowDown) {
+        MoveCursor(view, 1, 0);
+        return true;
+    }
+    if (event == Event::ArrowUp) {
+        MoveCursor(view, -1, 0);
+        return true;
+    }
 
     return false;
 }
@@ -3667,9 +4843,15 @@ bool ViEditor::OnVisualBlockEvent(Event event) {
     if (event == Event::Special({4}) || event == Event::Special({21})) {
         int half = std::max(1, Terminal::Size().dimy / 2);
         int dir = (event == Event::Special({4})) ? 1 : -1;
-        view.cursor_row = std::clamp(view.cursor_row + dir * half, 0, static_cast<int>(view.lines.size()) - 1);
-        view.cursor_col = std::min(view.cursor_col, static_cast<int>(view.lines[view.cursor_row].size()));
-        view.top_row = std::clamp(view.cursor_row - half / 2, 0, std::max(0, static_cast<int>(view.lines.size()) - half));
+        view.cursor_row =
+            std::clamp(view.cursor_row + dir * half, 0,
+                       static_cast<int>(view.lines.size()) - 1);
+        view.cursor_col = std::min(
+            view.cursor_col,
+            static_cast<int>(view.lines[view.cursor_row].size()));
+        view.top_row = std::clamp(
+            view.cursor_row - half / 2, 0,
+            std::max(0, static_cast<int>(view.lines.size()) - half));
         UpdateScroll(view);
         return true;
     }
@@ -3678,27 +4860,84 @@ bool ViEditor::OnVisualBlockEvent(Event event) {
         std::string ch = event.character();
         if (ch.size() == 1) {
             char c = ch[0];
-            if (c == 'd') { ApplyBlockChange(view, OperatorType::DELETE_OP); return true; }
-            if (c == 'c') { ApplyBlockChange(view, OperatorType::CHANGE); return true; }
-            if (c == 'y') { ApplyOperatorToSelection(view, OperatorType::YANK); return true; }
-            if (c == '>') { ApplyOperatorToSelection(view, OperatorType::INDENT); return true; }
-            if (c == '<') { ApplyOperatorToSelection(view, OperatorType::OUTDENT); return true; }
-            if (c == '~') { ApplyOperatorToSelection(view, OperatorType::TILDE_CASE); return true; }
+            if (c == 'd') {
+                ApplyBlockChange(view, OperatorType::DELETE_OP);
+                return true;
+            }
+            if (c == 'c') {
+                ApplyBlockChange(view, OperatorType::CHANGE);
+                return true;
+            }
+            if (c == 'y') {
+                ApplyOperatorToSelection(view, OperatorType::YANK);
+                return true;
+            }
+            if (c == '>') {
+                ApplyOperatorToSelection(view, OperatorType::INDENT);
+                return true;
+            }
+            if (c == '<') {
+                ApplyOperatorToSelection(view, OperatorType::OUTDENT);
+                return true;
+            }
+            if (c == '~') {
+                ApplyOperatorToSelection(view,
+                                         OperatorType::TILDE_CASE);
+                return true;
+            }
         }
     }
 
-    if (event == Event::Character('h')) { MoveCursor(view, 0, -1); return true; }
-    if (event == Event::Character('j')) { MoveCursor(view, 1, 0);  return true; }
-    if (event == Event::Character('k')) { MoveCursor(view, -1, 0); return true; }
-    if (event == Event::Character('l')) { MoveCursor(view, 0, 1);  return true; }
-    if (event == Event::Character('$')) { view.cursor_col = static_cast<int>(view.lines[view.cursor_row].size()); UpdateScroll(view); return true; }
-    if (event == Event::Character('0')) { view.cursor_col = 0; UpdateScroll(view); return true; }
-    if (event == Event::Character('G')) { view.cursor_row = static_cast<int>(view.lines.size()) - 1; view.cursor_col = visual_block_start_col_; UpdateScroll(view); return true; }
+    if (event == Event::Character('h')) {
+        MoveCursor(view, 0, -1);
+        return true;
+    }
+    if (event == Event::Character('j')) {
+        MoveCursor(view, 1, 0);
+        return true;
+    }
+    if (event == Event::Character('k')) {
+        MoveCursor(view, -1, 0);
+        return true;
+    }
+    if (event == Event::Character('l')) {
+        MoveCursor(view, 0, 1);
+        return true;
+    }
+    if (event == Event::Character('$')) {
+        view.cursor_col =
+            static_cast<int>(view.lines[view.cursor_row].size());
+        UpdateScroll(view);
+        return true;
+    }
+    if (event == Event::Character('0')) {
+        view.cursor_col = 0;
+        UpdateScroll(view);
+        return true;
+    }
+    if (event == Event::Character('G')) {
+        view.cursor_row = static_cast<int>(view.lines.size()) - 1;
+        view.cursor_col = visual_block_start_col_;
+        UpdateScroll(view);
+        return true;
+    }
 
-    if (event == Event::ArrowLeft)  { MoveCursor(view, 0, -1); return true; }
-    if (event == Event::ArrowDown)  { MoveCursor(view, 1, 0);  return true; }
-    if (event == Event::ArrowUp)    { MoveCursor(view, -1, 0); return true; }
-    if (event == Event::ArrowRight) { MoveCursor(view, 0, 1);  return true; }
+    if (event == Event::ArrowLeft) {
+        MoveCursor(view, 0, -1);
+        return true;
+    }
+    if (event == Event::ArrowDown) {
+        MoveCursor(view, 1, 0);
+        return true;
+    }
+    if (event == Event::ArrowUp) {
+        MoveCursor(view, -1, 0);
+        return true;
+    }
+    if (event == Event::ArrowRight) {
+        MoveCursor(view, 0, 1);
+        return true;
+    }
 
     return false;
 }
@@ -3708,11 +4947,8 @@ bool ViEditor::OnVisualBlockEvent(Event event) {
 // ============================================================================
 
 Component ViEditor::GetComponent() {
-    return Renderer([this] {
-        return RenderAllViews();
-    }) | CatchEvent([this](Event event) {
-        return OnEvent(event);
-    });
+    return Renderer([this] { return RenderAllViews(); }) |
+           CatchEvent([this](Event event) { return OnEvent(event); });
 }
 
 void ViEditor::Run() {

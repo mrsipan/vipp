@@ -1,0 +1,27 @@
+BasedOnStyle: LLVM
+IndentWidth: 4
+TabWidth: 4
+UseTab: Never
+ColumnLimit: 72
+
+BreakBeforeBraces: Attach
+AllowShortFunctionsOnASingleLine: Inline
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLoopsOnASingleLine: false
+
+SpaceBeforeParens: ControlStatements
+SpaceAfterCStyleCast: true
+
+PointerAlignment: Left
+
+AccessModifierOffset: -4
+
+IncludeBlocks: Preserve
+SortIncludes: Never
+
+AlignConsecutiveAssignments: false
+AlignConsecutiveDeclarations: false
+
+# Keep enum and struct definitions compact on one line when small
+AllowShortEnumsOnASingleLine: false
+AllowShortBlocksOnASingleLine: Never

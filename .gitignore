@@ -1,0 +1,17 @@
+# Build outputs
+vipp
+vipp-debug
+vipp.exe
+
+# FTXUI build directory (cloned by Makefile / CI)
+.ftxui/
+
+# IDE / editor artifacts
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
+
+# macOS
+.DS_Store

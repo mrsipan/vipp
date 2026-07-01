@@ -21,7 +21,7 @@ FTXUI_BUILD := $(FTXUI_DIR)/build
 FTXUI_STAMP := $(FTXUI_BUILD)/.built
 
 # --- Targets ---
-.PHONY: all static dynamic debug clean clean-all
+.PHONY: all static dynamic debug clean clean-all format format-check
 
 all: vipp
 
@@ -76,3 +76,14 @@ clean:
 
 clean-all: clean
 	rm -rf $(FTXUI_DIR)
+
+# Format source code with clang-format
+format:
+	@which clang-format >/dev/null 2>&1 || { echo "clang-format not found. Install with: apt install clang-format / brew install clang-format"; exit 1; }
+	clang-format -i vi.cpp
+	@echo "→ Formatted vi.cpp"
+
+# Check formatting without modifying (useful in CI)
+format-check:
+	@which clang-format >/dev/null 2>&1 || { echo "clang-format not found. Install with: apt install clang-format / brew install clang-format"; exit 1; }
+	@clang-format --dry-run --Werror vi.cpp && echo "✓ Formatting OK" || { echo "✗ Formatting issues found — run 'make format' to fix"; exit 1; }

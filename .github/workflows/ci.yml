@@ -1,0 +1,325 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+    tags: ["v*"]
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ── Linux x86_64 (glibc, static FTXUI) ─────────────────────────────────────
+  linux-amd64:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq cmake g++ git
+
+      - name: Cache FTXUI
+        uses: actions/cache@v4
+        id: cache-ftxui-amd64
+        with:
+          path: .ftxui/build
+          key: ftxui-v7.0.0-amd64-${{ hashFiles('.github/workflows/ci.yml') }}
+
+      - name: Build static vipp (glibc)
+        run: make -j$(nproc)
+
+      - name: Verify no FTXUI shared dep
+        run: |
+          echo "Checking for FTXUI shared lib dependency (should be empty):"
+          ldd vipp | grep -i ftxui || echo "  ✓ No FTXUI .so dependency"
+
+      - name: Show binary info
+        run: |
+          echo "Binary size:"
+          ls -lh vipp
+          echo ""
+          echo "Dynamic dependencies:"
+          ldd vipp
+          echo ""
+          echo "File type:"
+          file vipp
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: vipp-linux-amd64
+          path: vipp
+          if-no-files-found: error
+
+  # ── Linux x86_64 (fully static, musl via Alpine) ───────────────────────────
+  linux-amd64-static:
+    runs-on: ubuntu-latest
+    container: alpine:latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install build dependencies (Alpine)
+        run: |
+          apk add --no-cache g++ cmake make git musl-dev
+
+      - name: Build FTXUI (static)
+        run: |
+          git clone --depth 1 --branch v7.0.0 \
+            https://github.com/ArthurSonzogni/FTXUI.git .ftxui
+          cmake -B .ftxui/build -S .ftxui \
+            -DBUILD_SHARED_LIBS=OFF \
+            -DBUILD_EXAMPLES=OFF \
+            -DBUILD_TESTS=OFF \
+            -DCMAKE_BUILD_TYPE=Release
+          cmake --build .ftxui/build -j$(nproc)
+
+      - name: Build fully-static vipp
+        run: |
+          g++ -std=c++20 -Os -flto -static \
+            -I.ftxui/build/include -I.ftxui/include \
+            -o vipp vi.cpp \
+            .ftxui/build/libftxui-component.a \
+            .ftxui/build/libftxui-dom.a \
+            .ftxui/build/libftxui-screen.a \
+            -lpthread
+          strip vipp
+
+      - name: Verify fully static
+        run: |
+          echo "Checking for dynamic sections (should say 'statically linked' or 'no dynamic'):"
+          ldd vipp 2>&1 || echo "  ✓ Fully static binary"
+          file vipp
+
+      - name: Show binary info
+        run: |
+          echo "Binary size:"
+          ls -lh vipp
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: vipp-linux-amd64-static
+          path: vipp
+          if-no-files-found: error
+
+  # ── Linux ARM64 (aarch64, glibc, static FTXUI) ─────────────────────────────
+  linux-arm64:
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq cmake g++ git
+
+      - name: Cache FTXUI
+        uses: actions/cache@v4
+        id: cache-ftxui-arm64
+        with:
+          path: .ftxui/build
+          key: ftxui-v7.0.0-arm64-${{ hashFiles('.github/workflows/ci.yml') }}
+
+      - name: Build static vipp (glibc)
+        run: make -j$(nproc)
+
+      - name: Verify no FTXUI shared dep
+        run: |
+          echo "Checking for FTXUI shared lib dependency (should be empty):"
+          ldd vipp | grep -i ftxui || echo "  ✓ No FTXUI .so dependency"
+
+      - name: Show binary info
+        run: |
+          echo "Binary size:"
+          ls -lh vipp
+          echo ""
+          echo "Dynamic dependencies:"
+          ldd vipp
+          echo ""
+          echo "File type:"
+          file vipp
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: vipp-linux-arm64
+          path: vipp
+          if-no-files-found: error
+
+  # ── macOS (Apple Silicon arm64, static FTXUI) ──────────────────────────────
+  macos-arm64:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          brew install cmake
+
+      - name: Cache FTXUI
+        uses: actions/cache@v4
+        id: cache-ftxui-macos
+        with:
+          path: .ftxui/build
+          key: ftxui-v7.0.0-macos-arm64-${{ hashFiles('.github/workflows/ci.yml') }}
+
+      - name: Build static vipp
+        run: make -j$(sysctl -n hw.ncpu)
+
+      - name: Verify no FTXUI shared dep
+        run: |
+          echo "Checking for FTXUI shared lib dependency (should be empty):"
+          otool -L vipp | grep -i ftxui || echo "  ✓ No FTXUI .dylib dependency"
+
+      - name: Show binary info
+        run: |
+          echo "Binary size:"
+          ls -lh vipp
+          echo ""
+          echo "Linked libraries:"
+          otool -L vipp
+          echo ""
+          echo "File type:"
+          file vipp
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: vipp-macos-arm64
+          path: vipp
+          if-no-files-found: error
+
+  # ── Windows (x86_64, MSYS2/MinGW, static FTXUI) ───────────────────────────
+  windows-amd64:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: UCRT64
+          update: true
+          install: >-
+            base-devel
+            git
+            mingw-w64-ucrt-x86_64-gcc
+            mingw-w64-ucrt-x86_64-cmake
+            mingw-w64-ucrt-x86_64-make
+
+      - name: Show toolchain
+        run: |
+          g++ --version
+          cmake --version
+
+      - name: Cache FTXUI
+        uses: actions/cache@v4
+        id: cache-ftxui-win
+        with:
+          path: .ftxui/build
+          key: ftxui-v7.0.0-win-ucrt64-${{ hashFiles('.github/workflows/ci.yml') }}
+
+      - name: Build FTXUI (static)
+        run: |
+          git clone --depth 1 --branch v7.0.0 \
+            https://github.com/ArthurSonzogni/FTXUI.git .ftxui
+          cmake -B .ftxui/build -S .ftxui \
+            -DBUILD_SHARED_LIBS=OFF \
+            -DBUILD_EXAMPLES=OFF \
+            -DBUILD_TESTS=OFF \
+            -DCMAKE_BUILD_TYPE=Release \
+            -G "MSYS Makefiles"
+          cmake --build .ftxui/build -j$(nproc)
+
+      - name: Build vipp (static link FTXUI, Windows)
+        run: |
+          g++ -std=c++20 -Os -flto -static \
+            -I.ftxui/build/include -I.ftxui/include \
+            -o vipp.exe vi.cpp \
+            .ftxui/build/libftxui-component.a \
+            .ftxui/build/libftxui-dom.a \
+            .ftxui/build/libftxui-screen.a \
+            -lpthread
+          strip vipp.exe
+
+      - name: Show binary info
+        run: |
+          echo "Binary size:"
+          ls -lh vipp.exe
+          echo ""
+          echo "File type:"
+          file vipp.exe
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: vipp-windows-amd64
+          path: vipp.exe
+          if-no-files-found: error
+
+  # ── Release: collect all artifacts and publish ─────────────────────────────
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs:
+      - linux-amd64
+      - linux-amd64-static
+      - linux-arm64
+      - macos-arm64
+      - windows-amd64
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Rename and flatten artifacts
+        run: |
+          mkdir -p dist
+          cp artifacts/vipp-linux-amd64/vipp              dist/vipp-linux-amd64
+          cp artifacts/vipp-linux-amd64-static/vipp       dist/vipp-linux-amd64-static
+          cp artifacts/vipp-linux-arm64/vipp              dist/vipp-linux-arm64
+          cp artifacts/vipp-macos-arm64/vipp              dist/vipp-macos-arm64
+          cp artifacts/vipp-windows-amd64/vipp.exe        dist/vipp-windows-amd64.exe
+
+      - name: Generate checksums
+        run: |
+          cd dist
+          sha256sum * > checksums.txt
+          cat checksums.txt
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: ${{ github.ref_name }}
+          body: |
+            ## vipp ${{ github.ref_name }}
+
+            Static binaries — no FTXUI runtime dependency required.
+
+            | Platform | File |
+            |----------|------|
+            | Linux x86_64 (glibc) | `vipp-linux-amd64` |
+            | Linux x86_64 (fully static, musl) | `vipp-linux-amd64-static` |
+            | Linux ARM64 (glibc) | `vipp-linux-arm64` |
+            | macOS ARM64 | `vipp-macos-arm64` |
+            | Windows x86_64 | `vipp-windows-amd64.exe` |
+
+            ### Run
+
+            ```sh
+            chmod +x vipp-linux-amd64   # Linux/macOS
+            ./vipp-linux-amd64 [filename]
+            ```
+
+            On Windows, run `vipp-windows-amd64.exe` from a terminal (cmd, PowerShell, or Windows Terminal).
+          files: |
+            dist/*
+          fail_on_unmatched_files: true
