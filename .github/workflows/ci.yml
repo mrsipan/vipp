@@ -66,7 +66,7 @@ jobs:
 
       - name: Install build dependencies (Alpine)
         run: |
-          apk add --no-cache g++ cmake make git musl-dev
+          apk add --no-cache g++ cmake make git musl-dev file
 
       - name: Build FTXUI (static)
         run: |
@@ -92,9 +92,11 @@ jobs:
 
       - name: Verify fully static
         run: |
-          echo "Checking for dynamic sections (should say 'statically linked' or 'no dynamic'):"
-          ldd vipp 2>&1 || echo "  ✓ Fully static binary"
+          echo "Checking for dynamic sections (should say 'statically linked'):"
           file vipp
+          echo ""
+          echo "ldd output (fully static = 'not a dynamic executable'):"
+          ldd vipp 2>&1 || true
 
       - name: Show binary info
         run: |
@@ -241,7 +243,7 @@ jobs:
 
       - name: Build vipp (static link FTXUI, Windows)
         run: |
-          g++ -std=c++20 -Os -flto -static \
+          g++ -std=c++20 -Os -static \
             -I.ftxui/build/include -I.ftxui/include \
             -o vipp.exe vi.cpp \
             .ftxui/build/libftxui-component.a \
