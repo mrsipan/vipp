@@ -12,6 +12,9 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: write   # needed for creating releases
+
 jobs:
   # ── Linux x86_64 (glibc, static FTXUI) ─────────────────────────────────────
   linux-amd64:
