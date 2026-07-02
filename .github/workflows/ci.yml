@@ -197,77 +197,6 @@ jobs:
           path: vipp
           if-no-files-found: error
 
-  # ── Windows (x86_64, MSYS2/MinGW, static FTXUI) ───────────────────────────
-  windows-amd64:
-    runs-on: windows-latest
-    defaults:
-      run:
-        shell: msys2 {0}
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: msys2/setup-msys2@v2
-        with:
-          msystem: UCRT64
-          update: true
-          install: >-
-            base-devel
-            git
-            mingw-w64-ucrt-x86_64-gcc
-            mingw-w64-ucrt-x86_64-cmake
-            mingw-w64-ucrt-x86_64-make
-
-      - name: Show toolchain
-        run: |
-          g++ --version
-          cmake --version
-
-      - name: Cache FTXUI
-        uses: actions/cache@v4
-        id: cache-ftxui-win
-        with:
-          path: .ftxui
-          key: ftxui-v7.0.0-win-ucrt64-${{ hashFiles('.github/workflows/ci.yml') }}
-
-      - name: Build FTXUI (static)
-        if: steps.cache-ftxui-win.outputs.cache-hit != 'true'
-        run: |
-          git clone --depth 1 --branch v7.0.0 \
-            https://github.com/ArthurSonzogni/FTXUI.git .ftxui
-          cmake -B .ftxui/build -S .ftxui \
-            -DBUILD_SHARED_LIBS=OFF \
-            -DBUILD_EXAMPLES=OFF \
-            -DBUILD_TESTS=OFF \
-            -DCMAKE_BUILD_TYPE=Release \
-            -G "MSYS Makefiles"
-          cmake --build .ftxui/build -j$(nproc)
-
-      - name: Build vipp (static link FTXUI, Windows)
-        run: |
-          g++ -std=c++20 -Os \
-            -I.ftxui/build/include -I.ftxui/include \
-            -o vipp.exe vi.cpp \
-            .ftxui/build/libftxui-component.a \
-            .ftxui/build/libftxui-dom.a \
-            .ftxui/build/libftxui-screen.a \
-            -lpthread
-          strip vipp.exe
-
-      - name: Show binary info
-        run: |
-          echo "Binary size:"
-          ls -lh vipp.exe
-          echo ""
-          echo "File type:"
-          file vipp.exe
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: vipp-windows-amd64
-          path: vipp.exe
-          if-no-files-found: error
-
   # ── Release: collect all artifacts and publish ─────────────────────────────
   release:
     if: startsWith(github.ref, 'refs/tags/v')
@@ -276,7 +205,6 @@ jobs:
       - linux-amd64-static
       - linux-arm64
       - macos-arm64
-      - windows-amd64
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4
@@ -290,7 +218,6 @@ jobs:
           cp artifacts/vipp-linux-amd64-static/vipp       dist/vipp-linux-amd64-static
           cp artifacts/vipp-linux-arm64/vipp              dist/vipp-linux-arm64
           cp artifacts/vipp-macos-arm64/vipp              dist/vipp-macos-arm64
-          cp artifacts/vipp-windows-amd64/vipp.exe        dist/vipp-windows-amd64.exe
 
       - name: Generate checksums
         run: |
@@ -313,16 +240,13 @@ jobs:
             | Linux x86_64 (fully static, musl) | `vipp-linux-amd64-static` |
             | Linux ARM64 (glibc) | `vipp-linux-arm64` |
             | macOS ARM64 | `vipp-macos-arm64` |
-            | Windows x86_64 | `vipp-windows-amd64.exe` |
 
             ### Run
 
             ```sh
-            chmod +x vipp-linux-amd64   # Linux/macOS
+            chmod +x vipp-linux-amd64   # Linux
             ./vipp-linux-amd64 [filename]
             ```
-
-            On Windows, run `vipp-windows-amd64.exe` from a terminal (cmd, PowerShell, or Windows Terminal).
           files: |
             dist/*
           fail_on_unmatched_files: true
