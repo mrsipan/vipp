@@ -96,6 +96,9 @@ If no filename is given, opens `untitled.txt`.
 | `d{motion}` | Delete | `dw` — delete word |
 | `c{motion}` | Change (delete + insert) | `ciw` — change inner word |
 | `y{motion}` | Yank (copy) | `y$` — yank to end of line |
+| `D` | Delete to end of line (like `d$`) | `D` |
+| `C` | Change to end of line (like `c$`) | `C` |
+| `Y` | Yank to end of line (like `y$`) | `Y` |
 | `dd` / `cc` / `yy` | Linewise delete / change / yank | `dd` — delete line |
 | `p` / `P` | Put after / before cursor | `p` — paste |
 | `>` / `<` | Indent / outdent | `>j` — indent this and next line |
@@ -109,6 +112,7 @@ If no filename is given, opens `untitled.txt`.
 | `h` `j` `k` `l` | Left, Down, Up, Right |
 | `w` `b` `e` | Word forward, back, end |
 | `W` `B` `E` | WORD forward, back, end |
+| `ge` `gE` | Backward to end of previous word / WORD |
 | `0` `$` `^` | Line start, end, first non-blank |
 | `gg` `G` | File start, end |
 | `{` `}` | Paragraph back / forward |
@@ -178,7 +182,7 @@ In visual mode, operators apply to the selection:
 |-----|--------|
 | `Ctrl-W` | Delete word before cursor |
 | `Backspace` | Delete character / join lines |
-| `Enter` | Split line |
+| `Enter` | Split line (auto-indents to match previous line) |
 
 ### Split Views
 
@@ -224,6 +228,12 @@ Define custom key sequences with `:map`. Mappings apply in **normal mode** only.
 " Yank line with <Space>y
 :map <Space>y yy
 ```
+
+**Default mappings:**
+
+| Keys | Action |
+|------|--------|
+| `<Space>/` | Clear search highlight (`:nohl`) |
 
 **Supported tokens:**
 

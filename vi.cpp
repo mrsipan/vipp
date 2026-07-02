@@ -161,12 +161,12 @@ static std::vector<SyntaxDefinition> kLanguages = {
     {"Org-Mode",
      {".org"},
      {
-         {R"(^\*+\s.*)", nothing},        // headers
-         {R"(\*[^*]+\*)", nothing},       // bold
-         {R"(/[^/]+/)", nothing},         // italic
-         {R"(:[a-zA-Z0-9_]+:)", nothing}, // tags
-         {R"(\bTODO\b)", nothing},
-         {R"(\bDONE\b)", nothing},
+         {R"(\*[^*]+\*)", nothing},       // 0: bold (gray)
+         {R"(/[^/]+/)", nothing},         // 1: italic (green)
+         {R"(^\*+\s.*)", nothing},        // 2: headers (light blue)
+         {R"(:[a-zA-Z0-9_]+:)", nothing}, // 3: tags (red-orange)
+         {R"(\bTODO\b)", nothing},        // 4: TODO (light green)
+         {R"(\bDONE\b)", nothing},        // 5: DONE (light blue)
      }},
 };
 
@@ -350,9 +350,7 @@ private:
 
     // ---- Mapping buffer ----
     std::vector<std::string> mapping_buffer_;
-
-    // ---- Temporary event injection ----
-    std::vector<Event> injected_events_;
+    bool replaying_ = false; // guard against mapping-buffer re-entrancy
 
     // ---- Last special motion (for ; and ,) ----
     char last_find_char_ = 0;
@@ -445,6 +443,10 @@ private:
                                     int count = 1) const;
     CursorPos MotionBigWordEndForward(const EditorView& v,
                                       int count = 1) const;
+    CursorPos MotionWordEndBackward(const EditorView& v,
+                                    int count = 1) const;
+    CursorPos MotionBigWordEndBackward(const EditorView& v,
+                                       int count = 1) const;
     CursorPos MotionLineStart(const EditorView& v) const;
     CursorPos MotionLineEnd(const EditorView& v) const;
     CursorPos MotionFirstNonBlank(const EditorView& v) const;
@@ -624,6 +626,9 @@ ViEditor::ViEditor(std::string filename) {
     view.filename = std::move(filename);
     LoadFile(view);
     views_.push_back(std::move(view));
+
+    // Default key mappings
+    AddMapping("<Space>/", ":nohl<CR>");
 }
 
 void ViEditor::LoadFile(EditorView& view) {
@@ -822,8 +827,10 @@ std::vector<std::string> ViEditor::ExtractRange(EditorView& view,
 void ViEditor::PutAfter(EditorView& view,
                         const std::vector<std::string>& text,
                         bool linewise, bool /*blockwise*/) {
-    if (text.empty())
+    if (text.empty()) {
+        SetStatus("Nothing to paste — yank register is empty");
         return;
+    }
     PushUndo(view, view.cursor_row, static_cast<int>(text.size()) + 1);
     if (linewise) {
         int ins_row = view.cursor_row + 1;
@@ -873,8 +880,10 @@ void ViEditor::PutAfter(EditorView& view,
 void ViEditor::PutBefore(EditorView& view,
                          const std::vector<std::string>& text,
                          bool linewise, bool /*blockwise*/) {
-    if (text.empty())
+    if (text.empty()) {
+        SetStatus("Nothing to paste — yank register is empty");
         return;
+    }
     PushUndo(view, view.cursor_row, static_cast<int>(text.size()) + 1);
     if (linewise) {
         int ins_row = view.cursor_row;
@@ -1423,9 +1432,12 @@ ViEditor::CursorPos ViEditor::MotionWordEndForward(const EditorView& v,
     int max_row = static_cast<int>(v.lines.size()) - 1;
 
     for (int c = 0; c < count; ++c) {
-        // If on whitespace, skip to next word char
-        if (col < static_cast<int>(v.lines[row].size()) &&
-            IsSpaceOrTab(v.lines[row][col])) {
+        int line_len = static_cast<int>(v.lines[row].size());
+        // Move forward one char so we don't stay on the same word end
+        if (col < line_len)
+            ++col;
+        // Skip whitespace
+        while (row <= max_row) {
             while (col < static_cast<int>(v.lines[row].size()) &&
                    IsSpaceOrTab(v.lines[row][col]))
                 ++col;
@@ -1433,18 +1445,28 @@ ViEditor::CursorPos ViEditor::MotionWordEndForward(const EditorView& v,
                 row < max_row) {
                 ++row;
                 col = 0;
+            } else {
+                break;
             }
         }
-        // Skip to end of word
-        while (row <= max_row &&
-               col < static_cast<int>(v.lines[row].size()) &&
-               IsWordChar(v.lines[row][col]))
-            ++col;
-        if (col > 0 && col <= static_cast<int>(v.lines[row].size()) &&
-            !IsWordChar(v.lines[row][col - 1])) {
-            // We're on a non-word char, move past it
+        // Move to end of word-or-punctuation sequence
+        if (row <= max_row &&
+            col < static_cast<int>(v.lines[row].size())) {
+            char cur = v.lines[row][col];
+            bool is_word = IsWordChar(cur);
+            while (row <= max_row &&
+                   col < static_cast<int>(v.lines[row].size())) {
+                char ch = v.lines[row][col];
+                if (IsSpaceOrTab(ch))
+                    break;
+                if (is_word && !IsWordChar(ch))
+                    break;
+                if (!is_word && IsWordChar(ch))
+                    break;
+                ++col;
+            }
         }
-        // Position at last char of word
+        // Position at last char of sequence
         if (col > 0)
             --col;
     }
@@ -1509,8 +1531,12 @@ ViEditor::MotionBigWordEndForward(const EditorView& v,
     int col = v.cursor_col;
     int max_row = static_cast<int>(v.lines.size()) - 1;
     for (int c = 0; c < count; ++c) {
-        if (col < static_cast<int>(v.lines[row].size()) &&
-            IsSpaceOrTab(v.lines[row][col])) {
+        int line_len = static_cast<int>(v.lines[row].size());
+        // Move forward one char so we don't stay on the same word end
+        if (col < line_len)
+            ++col;
+        // Skip whitespace
+        while (row <= max_row) {
             while (col < static_cast<int>(v.lines[row].size()) &&
                    IsSpaceOrTab(v.lines[row][col]))
                 ++col;
@@ -1518,8 +1544,11 @@ ViEditor::MotionBigWordEndForward(const EditorView& v,
                 row < max_row) {
                 ++row;
                 col = 0;
+            } else {
+                break;
             }
         }
+        // Move to end of WORD
         while (row <= max_row &&
                col < static_cast<int>(v.lines[row].size()) &&
                IsBigWordChar(v.lines[row][col]))
@@ -1527,6 +1556,179 @@ ViEditor::MotionBigWordEndForward(const EditorView& v,
         if (col > 0)
             --col;
     }
+    return {row, col};
+}
+
+ViEditor::CursorPos ViEditor::MotionWordEndBackward(const EditorView& v,
+                                                    int count) const {
+    int row = v.cursor_row;
+    int col = v.cursor_col;
+
+    for (int c = 0; c < count; ++c) {
+        // Determine the type of character under the cursor
+        if (row < 0 || row >= static_cast<int>(v.lines.size()))
+            break;
+        int line_len = static_cast<int>(v.lines[row].size());
+        if (col >= line_len)
+            col = line_len > 0 ? line_len - 1 : 0;
+        char cur = (col < line_len) ? v.lines[row][col] : ' ';
+        bool is_word = IsWordChar(cur);
+        bool is_space = IsSpaceOrTab(cur);
+
+        // Step 1: skip backward past the current sequence
+        if (!is_space) {
+            while (true) {
+                if (col <= 0) {
+                    if (row > 0) {
+                        --row;
+                        col = static_cast<int>(v.lines[row].size());
+                    } else {
+                        break;
+                    }
+                }
+                if (col > 0)
+                    --col;
+                else
+                    break;
+                char ch = v.lines[row][col];
+                if (IsSpaceOrTab(ch))
+                    break;
+                if (is_word && !IsWordChar(ch))
+                    break;
+                if (!is_word && IsWordChar(ch))
+                    break;
+            }
+        }
+
+        // Step 2: skip backward past whitespace
+        while (row >= 0) {
+            if (col >= static_cast<int>(v.lines[row].size()))
+                col = static_cast<int>(v.lines[row].size()) - 1;
+            while (col >= 0 &&
+                   col < static_cast<int>(v.lines[row].size()) &&
+                   IsSpaceOrTab(v.lines[row][col]))
+                --col;
+            if (col < 0 && row > 0) {
+                --row;
+                col = static_cast<int>(v.lines[row].size()) - 1;
+            } else {
+                break;
+            }
+        }
+
+        // Step 3: find the end of the previous sequence
+        if (row >= 0 && col >= 0 &&
+            col < static_cast<int>(v.lines[row].size()) &&
+            !IsSpaceOrTab(v.lines[row][col])) {
+            cur = v.lines[row][col];
+            is_word = IsWordChar(cur);
+            // Find the start of this sequence
+            int seq_start = col;
+            while (seq_start > 0) {
+                char prev = v.lines[row][seq_start - 1];
+                if (IsSpaceOrTab(prev))
+                    break;
+                if (is_word && !IsWordChar(prev))
+                    break;
+                if (!is_word && IsWordChar(prev))
+                    break;
+                --seq_start;
+            }
+            // Move from start to end
+            col = seq_start;
+            line_len = static_cast<int>(v.lines[row].size());
+            while (col < line_len) {
+                char ch = v.lines[row][col];
+                if (IsSpaceOrTab(ch))
+                    break;
+                if (is_word && !IsWordChar(ch))
+                    break;
+                if (!is_word && IsWordChar(ch))
+                    break;
+                ++col;
+            }
+            if (col > 0)
+                --col;
+        }
+    }
+    if (row < 0)
+        row = 0;
+    if (col < 0)
+        col = 0;
+    return {row, col};
+}
+
+ViEditor::CursorPos
+ViEditor::MotionBigWordEndBackward(const EditorView& v,
+                                   int count) const {
+    int row = v.cursor_row;
+    int col = v.cursor_col;
+
+    for (int c = 0; c < count; ++c) {
+        if (row < 0 || row >= static_cast<int>(v.lines.size()))
+            break;
+        int line_len = static_cast<int>(v.lines[row].size());
+        if (col >= line_len)
+            col = line_len > 0 ? line_len - 1 : 0;
+        char cur = (col < line_len) ? v.lines[row][col] : ' ';
+        bool is_space = IsSpaceOrTab(cur);
+
+        // Step 1: skip backward past the current BIG word
+        if (!is_space) {
+            while (true) {
+                if (col <= 0) {
+                    if (row > 0) {
+                        --row;
+                        col = static_cast<int>(v.lines[row].size());
+                    } else {
+                        break;
+                    }
+                }
+                if (col > 0)
+                    --col;
+                else
+                    break;
+                if (IsSpaceOrTab(v.lines[row][col]))
+                    break;
+            }
+        }
+
+        // Step 2: skip backward past whitespace
+        while (row >= 0) {
+            if (col >= static_cast<int>(v.lines[row].size()))
+                col = static_cast<int>(v.lines[row].size()) - 1;
+            while (col >= 0 &&
+                   col < static_cast<int>(v.lines[row].size()) &&
+                   IsSpaceOrTab(v.lines[row][col]))
+                --col;
+            if (col < 0 && row > 0) {
+                --row;
+                col = static_cast<int>(v.lines[row].size()) - 1;
+            } else {
+                break;
+            }
+        }
+
+        // Step 3: find the end of the previous BIG word
+        if (row >= 0 && col >= 0 &&
+            col < static_cast<int>(v.lines[row].size()) &&
+            !IsSpaceOrTab(v.lines[row][col])) {
+            int seq_start = col;
+            while (seq_start > 0 &&
+                   !IsSpaceOrTab(v.lines[row][seq_start - 1]))
+                --seq_start;
+            col = seq_start;
+            line_len = static_cast<int>(v.lines[row].size());
+            while (col < line_len && !IsSpaceOrTab(v.lines[row][col]))
+                ++col;
+            if (col > 0)
+                --col;
+        }
+    }
+    if (row < 0)
+        row = 0;
+    if (col < 0)
+        col = 0;
     return {row, col};
 }
 
@@ -2169,8 +2371,13 @@ void ViEditor::ExecuteOperator(EditorView& view, OperatorType op,
     }
     case OperatorType::YANK: {
         auto yanked = ExtractRange(view, adjusted);
-        if (adjusted.start_col == 0 && adjusted.end_col == 0 &&
-            adjusted.start_row != adjusted.end_row) {
+        if (adjusted.start_col == 0 && adjusted.end_col == 0) {
+            // Linewise: expand range to cover full lines
+            int sr = std::min(adjusted.start_row, adjusted.end_row);
+            int er = std::max(adjusted.start_row, adjusted.end_row);
+            adjusted = {sr, 0, er,
+                        static_cast<int>(view.lines[er].size())};
+            yanked = ExtractRange(view, adjusted);
             view.yank_linewise = true;
         } else {
             view.yank_linewise = false;
@@ -3250,13 +3457,6 @@ static std::string EventToMappingStr(const Event& e) {
 }
 
 bool ViEditor::OnEvent(Event event) {
-    // Process any injected events first
-    if (!injected_events_.empty()) {
-        Event inj = injected_events_.front();
-        injected_events_.erase(injected_events_.begin());
-        return OnEvent(inj);
-    }
-
     // Tick status timeout
     if (status_timeout_ > 0)
         --status_timeout_;
@@ -3287,12 +3487,13 @@ bool ViEditor::OnEvent(Event event) {
     }
 
     // ---- Key mapping buffer (normal mode only) ----
-    // Skip when a multi-key command is already pending (gg, zz, f,
-    // etc.)
+    // Skip when replaying injected events, or when a multi-key command
+    // is pending
     bool pending = g_pending_ || z_pending_ || Z_pending_ ||
                    find_pending_ || text_obj_pending_ ||
                    ctrl_w_pending_ || (ctrl_o_pending_ != 0);
-    if (mode_ == Mode::NORMAL && !key_mappings_.empty() && !pending) {
+    if (mode_ == Mode::NORMAL && !key_mappings_.empty() && !pending &&
+        !replaying_) {
         std::string key_str = EventToMappingStr(event);
         if (!key_str.empty()) {
             mapping_buffer_.push_back(key_str);
@@ -3312,11 +3513,13 @@ bool ViEditor::OnEvent(Event event) {
                 }
                 if (match) {
                     if (km.from_seq.size() == mapping_buffer_.size()) {
-                        // Exact match: inject mapped events
+                        // Exact match: replay mapped events inline
+                        std::vector<std::string> to_seq = km.to_seq;
                         mapping_buffer_.clear();
-                        for (const auto& s : km.to_seq)
-                            injected_events_.push_back(
-                                EventFromString(s));
+                        replaying_ = true;
+                        for (const auto& s : to_seq)
+                            OnEvent(EventFromString(s));
+                        replaying_ = false;
                         return true;
                     }
                     prefix_match = true;
@@ -3325,16 +3528,14 @@ bool ViEditor::OnEvent(Event event) {
             if (prefix_match)
                 return true; // keep buffering
 
-            // No match: replay buffered events
-            for (const auto& s : mapping_buffer_)
-                injected_events_.push_back(EventFromString(s));
+            // No match: replay buffered events inline
+            std::vector<std::string> saved = mapping_buffer_;
             mapping_buffer_.clear();
-            // Recurse to process the first injected event
-            if (!injected_events_.empty()) {
-                Event inj = injected_events_.front();
-                injected_events_.erase(injected_events_.begin());
-                return OnEvent(inj);
-            }
+            replaying_ = true;
+            for (const auto& s : saved)
+                OnEvent(EventFromString(s));
+            replaying_ = false;
+            return true;
         }
     }
 
@@ -3474,6 +3675,24 @@ bool ViEditor::OnNormalEvent(Event event) {
                         view.cursor_row = 0;
                     }
                     view.cursor_col = 0;
+                    UpdateScroll(view);
+                    count_acc_ = 0;
+                    return true;
+                }
+                if (c == 'e') {
+                    // ge: go to end of previous word
+                    auto pos = MotionWordEndBackward(view, count);
+                    view.cursor_row = pos.row;
+                    view.cursor_col = pos.col;
+                    UpdateScroll(view);
+                    count_acc_ = 0;
+                    return true;
+                }
+                if (c == 'E') {
+                    // gE: go to end of previous WORD
+                    auto pos = MotionBigWordEndBackward(view, count);
+                    view.cursor_row = pos.row;
+                    view.cursor_col = pos.col;
                     UpdateScroll(view);
                     count_acc_ = 0;
                     return true;
@@ -3620,6 +3839,38 @@ bool ViEditor::OnNormalEvent(Event event) {
                            view.cursor_row, view.cursor_col + count};
                 ExecuteOperator(view, OperatorType::TILDE_CASE, r);
                 MoveCursor(view, 0, count);
+                count_acc_ = 0;
+                return true;
+            }
+            case 'D': {
+                // Delete to end of line (like d$)
+                int end_col = static_cast<int>(
+                    view.lines[view.cursor_row].size());
+                Range r = {view.cursor_row, view.cursor_col,
+                           view.cursor_row, end_col};
+                ExecuteOperator(view, OperatorType::DELETE_OP, r);
+                count_acc_ = 0;
+                return true;
+            }
+            case 'C': {
+                // Change to end of line (like c$)
+                int end_col = static_cast<int>(
+                    view.lines[view.cursor_row].size());
+                Range r = {view.cursor_row, view.cursor_col,
+                           view.cursor_row, end_col};
+                ExecuteOperator(view, OperatorType::CHANGE, r);
+                mode_ = Mode::INSERT;
+                BeginInsertUndo(view);
+                count_acc_ = 0;
+                return true;
+            }
+            case 'Y': {
+                // Yank to end of line (like y$)
+                int end_col = static_cast<int>(
+                    view.lines[view.cursor_row].size());
+                Range r = {view.cursor_row, view.cursor_col,
+                           view.cursor_row, end_col};
+                ExecuteOperator(view, OperatorType::YANK, r);
                 count_acc_ = 0;
                 return true;
             }
@@ -4112,12 +4363,19 @@ bool ViEditor::OnInsertEvent(Event event) {
 
     if (event == Event::Return) {
         std::string& line = view.lines[view.cursor_row];
+        // Compute leading whitespace of current line for auto-indent
+        int indent = 0;
+        while (indent < static_cast<int>(line.size()) &&
+               (line[indent] == ' ' || line[indent] == '\t'))
+            ++indent;
         std::string rest = line.substr(view.cursor_col);
         line.erase(view.cursor_col);
+        // Prepend the indentation to the new line
+        std::string ws = line.substr(0, indent);
         view.lines.insert(view.lines.begin() + view.cursor_row + 1,
-                          rest);
+                          ws + rest);
         ++view.cursor_row;
-        view.cursor_col = 0;
+        view.cursor_col = indent;
         view.modified = true;
         UpdateScroll(view);
         if (recording_insert_)
