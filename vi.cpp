@@ -2813,6 +2813,11 @@ void ViEditor::ExecuteCommand() {
         LoadFile(view);
         view.cursor_row = view.cursor_col = view.top_row = 0;
         view.modified = false;
+    } else if (command_line_ == "e" || command_line_ == "e!") {
+        // :e or :e! — reload current file from disk
+        LoadFile(view);
+        view.cursor_row = view.cursor_col = view.top_row = 0;
+        view.modified = false;
     } else if (command_line_ == "nohl" ||
                command_line_ == "nohlsearch") {
         ClearSearchHighlight();
@@ -3694,6 +3699,16 @@ bool ViEditor::OnNormalEvent(Event event) {
                     view.cursor_row = pos.row;
                     view.cursor_col = pos.col;
                     UpdateScroll(view);
+                    count_acc_ = 0;
+                    return true;
+                }
+                if (c == 'R') {
+                    // gR: reload current file from disk
+                    LoadFile(view);
+                    view.cursor_row = view.cursor_col = view.top_row =
+                        0;
+                    view.modified = false;
+                    SetStatus("Reloaded " + view.filename);
                     count_acc_ = 0;
                     return true;
                 }
