@@ -28,7 +28,7 @@ jobs:
         uses: actions/cache@v4
         id: cache-ftxui-amd64
         with:
-          path: .ftxui/build
+          path: .ftxui
           key: ftxui-v7.0.0-amd64-${{ hashFiles('.github/workflows/ci.yml') }}
 
       - name: Build static vipp (glibc)
@@ -125,7 +125,7 @@ jobs:
         uses: actions/cache@v4
         id: cache-ftxui-arm64
         with:
-          path: .ftxui/build
+          path: .ftxui
           key: ftxui-v7.0.0-arm64-${{ hashFiles('.github/workflows/ci.yml') }}
 
       - name: Build static vipp (glibc)
@@ -168,7 +168,7 @@ jobs:
         uses: actions/cache@v4
         id: cache-ftxui-macos
         with:
-          path: .ftxui/build
+          path: .ftxui
           key: ftxui-v7.0.0-macos-arm64-${{ hashFiles('.github/workflows/ci.yml') }}
 
       - name: Build static vipp
@@ -226,10 +226,11 @@ jobs:
         uses: actions/cache@v4
         id: cache-ftxui-win
         with:
-          path: .ftxui/build
+          path: .ftxui
           key: ftxui-v7.0.0-win-ucrt64-${{ hashFiles('.github/workflows/ci.yml') }}
 
       - name: Build FTXUI (static)
+        if: steps.cache-ftxui-win.outputs.cache-hit != 'true'
         run: |
           git clone --depth 1 --branch v7.0.0 \
             https://github.com/ArthurSonzogni/FTXUI.git .ftxui

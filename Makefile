@@ -21,7 +21,7 @@ FTXUI_BUILD := $(FTXUI_DIR)/build
 FTXUI_STAMP := $(FTXUI_BUILD)/.built
 
 # --- Targets ---
-.PHONY: all static dynamic debug clean clean-all format format-check
+.PHONY: all debug clean clean-all format format-check
 
 all: vipp
 
@@ -51,14 +51,6 @@ $(FTXUI_STAMP):
 	cmake --build $(FTXUI_BUILD) -j$(NPROC)
 	@touch $(FTXUI_STAMP)
 	@echo "→ FTXUI static libraries built"
-
-# Dynamic build (requires FTXUI installed system-wide via Homebrew/apt/etc)
-dynamic: vi.cpp
-	$(CXX) $(CXXFLAGS) \
-		-o vipp vi.cpp \
-		-lftxui-component -lftxui-dom -lftxui-screen $(LDFLAGS)
-	$(STRIP) vipp
-	@echo "→ Built dynamic vipp ($$(ls -lh vipp | awk '{print $$5}'))"
 
 # Debug build (no optimisation, symbols kept)
 debug: vi.cpp $(FTXUI_STAMP)

@@ -10,33 +10,9 @@ Vipp is a feature-rich Vim implementation built in modern C++20 using [FTXUI](ht
 - **CMake 3.14+** (to build FTXUI from source)
 - **Git** (to clone FTXUI)
 
-### Option 1: Dynamic linking (macOS with Homebrew)
+### Static build (no FTXUI runtime dependency)
 
-```sh
-brew install ftxui
-g++ -std=c++20 -I/opt/homebrew/include -L/opt/homebrew/lib \
-    -o vipp vi.cpp -lftxui-component -lftxui-dom -lftxui-screen
-```
-
-### Option 2: Dynamic linking (Linux with system package manager)
-
-```sh
-# Debian/Ubuntu
-sudo apt install libftxui-dev
-
-# Fedora
-sudo dnf install ftxui-devel
-
-# Arch
-sudo pacman -S ftxui
-
-# Then compile:
-g++ -std=c++20 -o vipp vi.cpp -lftxui-component -lftxui-dom -lftxui-screen
-```
-
-### Option 3: Static linking (no FTXUI runtime dependency — macOS & Linux)
-
-This bakes FTXUI directly into the binary. The resulting `vipp` binary has **no** `libftxui*.so` or `libftxui*.dylib` dependency.
+FTXUI is baked directly into the binary — no `libftxui*.so` or `libftxui*.dylib` dependency.
 
 ```sh
 # 1. Clone and build FTXUI static libraries (one-time):
@@ -87,7 +63,6 @@ ldd vipp | grep ftxui         # should produce no output
 |-------|-------|------|
 | Default static | `-std=c++20` | ~1.2 MB |
 | Optimized static | `-Os -flto` + `strip` | **~330 KB** |
-| Dynamic | `-Os` + `strip` | ~178 KB |
 
 ## Run
 
