@@ -775,7 +775,15 @@ void ViEditor::DeleteRange(EditorView& view, const Range& r) {
     if (r.start_row == r.end_row) {
         int start = std::min(r.start_col, r.end_col);
         int end = std::max(r.start_col, r.end_col);
-        view.lines[r.start_row].erase(start, end - start);
+        int line_len = static_cast<int>(view.lines[r.start_row].size());
+        // If deleting the entire line, remove the line itself
+        if (start == 0 && end >= line_len) {
+            view.lines.erase(view.lines.begin() + r.start_row);
+            if (view.lines.empty())
+                view.lines.emplace_back("");
+        } else {
+            view.lines[r.start_row].erase(start, end - start);
+        }
     } else {
         int first_row = std::min(r.start_row, r.end_row);
         int last_row = std::max(r.start_row, r.end_row);
@@ -4902,7 +4910,7 @@ bool ViEditor::OnVisualEvent(Event event) {
         std::string ch = event.character();
         if (ch.size() == 1) {
             char c = ch[0];
-            if (c == 'd') {
+            if (c == 'd' || c == 'x') {
                 ApplyOperatorToSelection(view, OperatorType::DELETE_OP);
                 return true;
             }
@@ -5049,7 +5057,7 @@ bool ViEditor::OnVisualLineEvent(Event event) {
         std::string ch = event.character();
         if (ch.size() == 1) {
             char c = ch[0];
-            if (c == 'd') {
+            if (c == 'd' || c == 'x') {
                 ApplyOperatorToSelection(view, OperatorType::DELETE_OP);
                 return true;
             }
@@ -5133,7 +5141,7 @@ bool ViEditor::OnVisualBlockEvent(Event event) {
         std::string ch = event.character();
         if (ch.size() == 1) {
             char c = ch[0];
-            if (c == 'd') {
+            if (c == 'd' || c == 'x') {
                 ApplyBlockChange(view, OperatorType::DELETE_OP);
                 return true;
             }

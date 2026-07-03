@@ -103,7 +103,7 @@ If no filename is given, opens `untitled.txt`.
 | `p` / `P` | Put after / before cursor | `p` — paste |
 | `>` / `<` | Indent / outdent | `>j` — indent this and next line |
 | `~` | Toggle case | `~` — flip case of char under cursor |
-| `x` | Delete character | `3x` — delete 3 chars |
+| `x` | Delete character (or selection in visual mode) | `3x` — delete 3 chars |
 
 ### Motions
 
@@ -113,6 +113,7 @@ If no filename is given, opens `untitled.txt`.
 | `w` `b` `e` | Word forward, back, end |
 | `W` `B` `E` | WORD forward, back, end |
 | `ge` `gE` | Backward to end of previous word / WORD |
+| `gR` | Reload current file from disk |
 | `0` `$` `^` | Line start, end, first non-blank |
 | `gg` `G` | File start, end |
 | `{` `}` | Paragraph back / forward |
@@ -172,7 +173,7 @@ Search supports **incremental matching** (jumps as you type), **regex** via `std
 | `Ctrl-V` | Block (rectangular) selection |
 
 In visual mode, operators apply to the selection:
-- `d` — delete, `c` — change, `y` — yank, `>` / `<` — indent, `~` — toggle case
+- `d` / `x` — delete, `c` — change, `y` — yank, `>` / `<` — indent, `~` — toggle case
 
 **Block change** (`Ctrl-V` + `c`): delete columns from all selected lines, type replacement, and the text is replicated across all lines on `Esc`.
 
@@ -266,6 +267,7 @@ Multi-key sequences are buffered until a full match (or mismatch) is detected.
 | `:q` | Quit (fails if modified) |
 | `:wq` | Save and quit |
 | `:q!` | Force quit (discard changes) |
+| `:e` / `:e!` | Reload current file from disk |
 | `:e filename` | Edit a different file |
 | `:split [file]` | Horizontal split |
 | `:vsplit [file]` | Vertical split |
