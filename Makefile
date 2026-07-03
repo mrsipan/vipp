@@ -21,20 +21,25 @@ FTXUI_BUILD := $(FTXUI_DIR)/build
 FTXUI_STAMP := $(FTXUI_BUILD)/.built
 
 # --- Targets ---
-.PHONY: all debug clean clean-all format format-check
+.PHONY: all debug clean clean-all format format-check test
 
 all: vipp
 
-vipp: vi.cpp $(FTXUI_STAMP)
+OBJS = motions.o
+
+vipp: vi.cpp $(OBJS) $(FTXUI_STAMP)
 	$(CXX) $(CXXFLAGS) \
 		-I$(FTXUI_BUILD)/include -I$(FTXUI_DIR)/include \
-		-o $@ vi.cpp \
+		-o $@ vi.cpp $(OBJS) \
 		$(FTXUI_BUILD)/libftxui-component.a \
 		$(FTXUI_BUILD)/libftxui-dom.a \
 		$(FTXUI_BUILD)/libftxui-screen.a \
 		$(LDFLAGS)
 	$(STRIP) $@
 	@echo "→ Built static vipp ($$(ls -lh vipp | awk '{print $$5}'))"
+
+motions.o: motions.cpp motions.h
+	$(CXX) $(CXXFLAGS) -c motions.cpp -o $@
 
 # Clone and build FTXUI static libraries (one-time)
 $(FTXUI_STAMP):
@@ -64,7 +69,7 @@ debug: vi.cpp $(FTXUI_STAMP)
 	@echo "→ Built debug vipp-debug"
 
 clean:
-	rm -f vipp vipp-debug
+	rm -f vipp vipp-debug motions.o test_motions test_motions.o
 
 clean-all: clean
 	rm -rf $(FTXUI_DIR)
@@ -79,3 +84,11 @@ format:
 format-check:
 	@which clang-format >/dev/null 2>&1 || { echo "clang-format not found. Install with: apt install clang-format / brew install clang-format"; exit 1; }
 	@clang-format --dry-run --Werror vi.cpp && echo "✓ Formatting OK" || { echo "✗ Formatting issues found — run 'make format' to fix"; exit 1; }
+
+# Run tests
+test: test_motions
+	./test_motions
+
+test_motions: tests/test_motions.cpp motions.o motions.h
+	$(CXX) -std=c++20 -g -O0 -o $@ tests/test_motions.cpp motions.o
+	@echo "→ Built test_motions"

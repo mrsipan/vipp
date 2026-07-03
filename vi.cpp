@@ -1,6 +1,7 @@
 #include <ftxui/component/component.hpp>
 #include <ftxui/component/screen_interactive.hpp>
 #include <ftxui/dom/elements.hpp>
+#include "motions.h"
 #include <algorithm>
 #include <cctype>
 #include <fstream>
@@ -424,9 +425,7 @@ private:
     // ================================================================
     // Motion functions – return the cursor position after motion
     // ================================================================
-    struct CursorPos {
-        int row, col;
-    };
+    // (CursorPos from motions.h)
     CursorPos MotionLeft(const EditorView& v, int count = 1) const;
     CursorPos MotionRight(const EditorView& v, int count = 1) const;
     CursorPos MotionDown(const EditorView& v, int count = 1) const;
@@ -1278,7 +1277,7 @@ void ViEditor::FinalizeBlockChange(EditorView& view) {
 // Motion functions
 // ============================================================================
 
-ViEditor::CursorPos ViEditor::MotionLeft(const EditorView& v,
+CursorPos ViEditor::MotionLeft(const EditorView& v,
                                          int count) const {
     int col = v.cursor_col;
     int row = v.cursor_row;
@@ -1293,7 +1292,7 @@ ViEditor::CursorPos ViEditor::MotionLeft(const EditorView& v,
     return {row, col};
 }
 
-ViEditor::CursorPos ViEditor::MotionRight(const EditorView& v,
+CursorPos ViEditor::MotionRight(const EditorView& v,
                                           int count) const {
     int col = v.cursor_col;
     int row = v.cursor_row;
@@ -1312,7 +1311,7 @@ ViEditor::CursorPos ViEditor::MotionRight(const EditorView& v,
     return {row, col};
 }
 
-ViEditor::CursorPos ViEditor::MotionDown(const EditorView& v,
+CursorPos ViEditor::MotionDown(const EditorView& v,
                                          int count) const {
     int row = std::min(v.cursor_row + count,
                        static_cast<int>(v.lines.size()) - 1);
@@ -1321,7 +1320,7 @@ ViEditor::CursorPos ViEditor::MotionDown(const EditorView& v,
     return {row, col};
 }
 
-ViEditor::CursorPos ViEditor::MotionUp(const EditorView& v,
+CursorPos ViEditor::MotionUp(const EditorView& v,
                                        int count) const {
     int row = std::max(v.cursor_row - count, 0);
     int col =
@@ -1329,17 +1328,17 @@ ViEditor::CursorPos ViEditor::MotionUp(const EditorView& v,
     return {row, col};
 }
 
-ViEditor::CursorPos
+CursorPos
 ViEditor::MotionLineStart(const EditorView& v) const {
     return {v.cursor_row, 0};
 }
 
-ViEditor::CursorPos ViEditor::MotionLineEnd(const EditorView& v) const {
+CursorPos ViEditor::MotionLineEnd(const EditorView& v) const {
     return {v.cursor_row,
             static_cast<int>(v.lines[v.cursor_row].size())};
 }
 
-ViEditor::CursorPos
+CursorPos
 ViEditor::MotionFirstNonBlank(const EditorView& v) const {
     const auto& line = v.lines[v.cursor_row];
     int col = 0;
@@ -1349,16 +1348,16 @@ ViEditor::MotionFirstNonBlank(const EditorView& v) const {
     return {v.cursor_row, col};
 }
 
-ViEditor::CursorPos
+CursorPos
 ViEditor::MotionFileStart(const EditorView& /*v*/) const {
     return {0, 0};
 }
 
-ViEditor::CursorPos ViEditor::MotionFileEnd(const EditorView& v) const {
+CursorPos ViEditor::MotionFileEnd(const EditorView& v) const {
     return {static_cast<int>(v.lines.size()) - 1, 0};
 }
 
-ViEditor::CursorPos ViEditor::MotionWordForward(const EditorView& v,
+CursorPos ViEditor::MotionWordForward(const EditorView& v,
                                                 int count) const {
     int row = v.cursor_row;
     int col = v.cursor_col;
@@ -1397,7 +1396,7 @@ ViEditor::CursorPos ViEditor::MotionWordForward(const EditorView& v,
     return {row, col};
 }
 
-ViEditor::CursorPos ViEditor::MotionWordBackward(const EditorView& v,
+CursorPos ViEditor::MotionWordBackward(const EditorView& v,
                                                  int count) const {
     int row = v.cursor_row;
     int col = v.cursor_col;
@@ -1433,7 +1432,7 @@ ViEditor::CursorPos ViEditor::MotionWordBackward(const EditorView& v,
     return {row, col};
 }
 
-ViEditor::CursorPos ViEditor::MotionWordEndForward(const EditorView& v,
+CursorPos ViEditor::MotionWordEndForward(const EditorView& v,
                                                    int count) const {
     int row = v.cursor_row;
     int col = v.cursor_col;
@@ -1481,7 +1480,7 @@ ViEditor::CursorPos ViEditor::MotionWordEndForward(const EditorView& v,
     return {row, col};
 }
 
-ViEditor::CursorPos ViEditor::MotionBigWordForward(const EditorView& v,
+CursorPos ViEditor::MotionBigWordForward(const EditorView& v,
                                                    int count) const {
     int row = v.cursor_row;
     int col = v.cursor_col;
@@ -1511,7 +1510,7 @@ ViEditor::CursorPos ViEditor::MotionBigWordForward(const EditorView& v,
     return {row, col};
 }
 
-ViEditor::CursorPos ViEditor::MotionBigWordBackward(const EditorView& v,
+CursorPos ViEditor::MotionBigWordBackward(const EditorView& v,
                                                     int count) const {
     int row = v.cursor_row;
     int col = v.cursor_col;
@@ -1532,7 +1531,7 @@ ViEditor::CursorPos ViEditor::MotionBigWordBackward(const EditorView& v,
     return {row, col};
 }
 
-ViEditor::CursorPos
+CursorPos
 ViEditor::MotionBigWordEndForward(const EditorView& v,
                                   int count) const {
     int row = v.cursor_row;
@@ -1567,7 +1566,7 @@ ViEditor::MotionBigWordEndForward(const EditorView& v,
     return {row, col};
 }
 
-ViEditor::CursorPos ViEditor::MotionWordEndBackward(const EditorView& v,
+CursorPos ViEditor::MotionWordEndBackward(const EditorView& v,
                                                     int count) const {
     int row = v.cursor_row;
     int col = v.cursor_col;
@@ -1666,7 +1665,7 @@ ViEditor::CursorPos ViEditor::MotionWordEndBackward(const EditorView& v,
     return {row, col};
 }
 
-ViEditor::CursorPos
+CursorPos
 ViEditor::MotionBigWordEndBackward(const EditorView& v,
                                    int count) const {
     int row = v.cursor_row;
@@ -1740,7 +1739,7 @@ ViEditor::MotionBigWordEndBackward(const EditorView& v,
     return {row, col};
 }
 
-ViEditor::CursorPos ViEditor::MotionFindForward(const EditorView& v,
+CursorPos ViEditor::MotionFindForward(const EditorView& v,
                                                 char target, int count,
                                                 bool till) const {
     int row = v.cursor_row;
@@ -1771,7 +1770,7 @@ ViEditor::CursorPos ViEditor::MotionFindForward(const EditorView& v,
     return {v.cursor_row, v.cursor_col}; // not found, stay
 }
 
-ViEditor::CursorPos ViEditor::MotionFindBackward(const EditorView& v,
+CursorPos ViEditor::MotionFindBackward(const EditorView& v,
                                                  char target, int count,
                                                  bool till) const {
     int row = v.cursor_row;
@@ -1802,7 +1801,7 @@ ViEditor::CursorPos ViEditor::MotionFindBackward(const EditorView& v,
     return {v.cursor_row, v.cursor_col};
 }
 
-ViEditor::CursorPos
+CursorPos
 ViEditor::MotionParagraphForward(const EditorView& v, int count) const {
     int row = v.cursor_row;
     int max_row = static_cast<int>(v.lines.size()) - 1;
@@ -1817,7 +1816,7 @@ ViEditor::MotionParagraphForward(const EditorView& v, int count) const {
     return {row, 0};
 }
 
-ViEditor::CursorPos
+CursorPos
 ViEditor::MotionParagraphBackward(const EditorView& v,
                                   int count) const {
     int row = v.cursor_row;
@@ -1830,7 +1829,7 @@ ViEditor::MotionParagraphBackward(const EditorView& v,
     return {row, 0};
 }
 
-ViEditor::CursorPos
+CursorPos
 ViEditor::MotionPercentMatch(const EditorView& v) const {
     const auto& line = v.lines[v.cursor_row];
     char target = 0;
@@ -1869,7 +1868,8 @@ ViEditor::MotionPercentMatch(const EditorView& v) const {
 
     if (forward) {
         if (col < static_cast<int>(v.lines[row].size()) &&
-            v.lines[row][col] == self) { /*already on it*/
+            v.lines[row][col] == self) {
+            ++col;  // skip the character we are already on
         }
     }
 

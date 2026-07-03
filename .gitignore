@@ -2,6 +2,9 @@
 vipp
 vipp-debug
 vipp.exe
+*.o
+test_motions
+test_motions.dSYM/
 
 # FTXUI build directory (cloned by Makefile / CI)
 .ftxui/
