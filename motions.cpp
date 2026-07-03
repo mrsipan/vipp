@@ -1,6 +1,5 @@
 #include "motions.h"
-CursorPos MotionLeft(const MotionView& v,
-                                         int count) {
+CursorPos MotionLeft(const MotionView& v, int count) {
     int col = v.cursor_col;
     int row = v.cursor_row;
     for (int i = 0; i < count && (row > 0 || col > 0); ++i) {
@@ -14,14 +13,13 @@ CursorPos MotionLeft(const MotionView& v,
     return {row, col};
 }
 
-CursorPos MotionRight(const MotionView& v,
-                                          int count) {
+CursorPos MotionRight(const MotionView& v, int count) {
     int col = v.cursor_col;
     int row = v.cursor_row;
     int max_row = static_cast<int>(v.lines->size()) - 1;
     for (int i = 0;
-         i < count &&
-         (row < max_row || col < static_cast<int>((*v.lines)[row].size()));
+         i < count && (row < max_row ||
+                       col < static_cast<int>((*v.lines)[row].size()));
          ++i) {
         if (col < static_cast<int>((*v.lines)[row].size()))
             ++col;
@@ -33,25 +31,22 @@ CursorPos MotionRight(const MotionView& v,
     return {row, col};
 }
 
-CursorPos MotionDown(const MotionView& v,
-                                         int count) {
+CursorPos MotionDown(const MotionView& v, int count) {
     int row = std::min(v.cursor_row + count,
                        static_cast<int>(v.lines->size()) - 1);
-    int col =
-        std::min(v.cursor_col, static_cast<int>((*v.lines)[row].size()));
+    int col = std::min(v.cursor_col,
+                       static_cast<int>((*v.lines)[row].size()));
     return {row, col};
 }
 
-CursorPos MotionUp(const MotionView& v,
-                                       int count) {
+CursorPos MotionUp(const MotionView& v, int count) {
     int row = std::max(v.cursor_row - count, 0);
-    int col =
-        std::min(v.cursor_col, static_cast<int>((*v.lines)[row].size()));
+    int col = std::min(v.cursor_col,
+                       static_cast<int>((*v.lines)[row].size()));
     return {row, col};
 }
 
-CursorPos
-MotionLineStart(const MotionView& v) {
+CursorPos MotionLineStart(const MotionView& v) {
     return {v.cursor_row, 0};
 }
 
@@ -60,8 +55,7 @@ CursorPos MotionLineEnd(const MotionView& v) {
             static_cast<int>((*v.lines)[v.cursor_row].size())};
 }
 
-CursorPos
-MotionFirstNonBlank(const MotionView& v) {
+CursorPos MotionFirstNonBlank(const MotionView& v) {
     const auto& line = (*v.lines)[v.cursor_row];
     int col = 0;
     while (col < static_cast<int>(line.size()) &&
@@ -70,8 +64,7 @@ MotionFirstNonBlank(const MotionView& v) {
     return {v.cursor_row, col};
 }
 
-CursorPos
-MotionFileStart(const MotionView& /*v*/) {
+CursorPos MotionFileStart(const MotionView& /*v*/) {
     return {0, 0};
 }
 
@@ -79,8 +72,7 @@ CursorPos MotionFileEnd(const MotionView& v) {
     return {static_cast<int>(v.lines->size()) - 1, 0};
 }
 
-CursorPos MotionWordForward(const MotionView& v,
-                                                int count) {
+CursorPos MotionWordForward(const MotionView& v, int count) {
     int row = v.cursor_row;
     int col = v.cursor_col;
     int max_row = static_cast<int>(v.lines->size()) - 1;
@@ -118,8 +110,7 @@ CursorPos MotionWordForward(const MotionView& v,
     return {row, col};
 }
 
-CursorPos MotionWordBackward(const MotionView& v,
-                                                 int count) {
+CursorPos MotionWordBackward(const MotionView& v, int count) {
     int row = v.cursor_row;
     int col = v.cursor_col;
 
@@ -154,8 +145,7 @@ CursorPos MotionWordBackward(const MotionView& v,
     return {row, col};
 }
 
-CursorPos MotionWordEndForward(const MotionView& v,
-                                                   int count) {
+CursorPos MotionWordEndForward(const MotionView& v, int count) {
     int row = v.cursor_row;
     int col = v.cursor_col;
     int max_row = static_cast<int>(v.lines->size()) - 1;
@@ -202,8 +192,7 @@ CursorPos MotionWordEndForward(const MotionView& v,
     return {row, col};
 }
 
-CursorPos MotionBigWordForward(const MotionView& v,
-                                                   int count) {
+CursorPos MotionBigWordForward(const MotionView& v, int count) {
     int row = v.cursor_row;
     int col = v.cursor_col;
     int max_row = static_cast<int>(v.lines->size()) - 1;
@@ -232,8 +221,7 @@ CursorPos MotionBigWordForward(const MotionView& v,
     return {row, col};
 }
 
-CursorPos MotionBigWordBackward(const MotionView& v,
-                                                    int count) {
+CursorPos MotionBigWordBackward(const MotionView& v, int count) {
     int row = v.cursor_row;
     int col = v.cursor_col;
     for (int c = 0; c < count; ++c) {
@@ -253,9 +241,7 @@ CursorPos MotionBigWordBackward(const MotionView& v,
     return {row, col};
 }
 
-CursorPos
-MotionBigWordEndForward(const MotionView& v,
-                                  int count) {
+CursorPos MotionBigWordEndForward(const MotionView& v, int count) {
     int row = v.cursor_row;
     int col = v.cursor_col;
     int max_row = static_cast<int>(v.lines->size()) - 1;
@@ -288,8 +274,7 @@ MotionBigWordEndForward(const MotionView& v,
     return {row, col};
 }
 
-CursorPos MotionWordEndBackward(const MotionView& v,
-                                                    int count) {
+CursorPos MotionWordEndBackward(const MotionView& v, int count) {
     int row = v.cursor_row;
     int col = v.cursor_col;
 
@@ -387,9 +372,7 @@ CursorPos MotionWordEndBackward(const MotionView& v,
     return {row, col};
 }
 
-CursorPos
-MotionBigWordEndBackward(const MotionView& v,
-                                   int count) {
+CursorPos MotionBigWordEndBackward(const MotionView& v, int count) {
     int row = v.cursor_row;
     int col = v.cursor_col;
 
@@ -448,7 +431,8 @@ MotionBigWordEndBackward(const MotionView& v,
                 --seq_start;
             col = seq_start;
             line_len = static_cast<int>((*v.lines)[row].size());
-            while (col < line_len && !IsSpaceOrTab((*v.lines)[row][col]))
+            while (col < line_len &&
+                   !IsSpaceOrTab((*v.lines)[row][col]))
                 ++col;
             if (col > 0)
                 --col;
@@ -461,9 +445,8 @@ MotionBigWordEndBackward(const MotionView& v,
     return {row, col};
 }
 
-CursorPos MotionFindForward(const MotionView& v,
-                                                char target, int count,
-                                                bool till) {
+CursorPos MotionFindForward(const MotionView& v, char target, int count,
+                            bool till) {
     int row = v.cursor_row;
     int col = v.cursor_col;
     int max_row = static_cast<int>(v.lines->size()) - 1;
@@ -492,9 +475,8 @@ CursorPos MotionFindForward(const MotionView& v,
     return {v.cursor_row, v.cursor_col}; // not found, stay
 }
 
-CursorPos MotionFindBackward(const MotionView& v,
-                                                 char target, int count,
-                                                 bool till) {
+CursorPos MotionFindBackward(const MotionView& v, char target,
+                             int count, bool till) {
     int row = v.cursor_row;
     int col = v.cursor_col;
 
@@ -523,8 +505,7 @@ CursorPos MotionFindBackward(const MotionView& v,
     return {v.cursor_row, v.cursor_col};
 }
 
-CursorPos
-MotionParagraphForward(const MotionView& v, int count) {
+CursorPos MotionParagraphForward(const MotionView& v, int count) {
     int row = v.cursor_row;
     int max_row = static_cast<int>(v.lines->size()) - 1;
     for (int c = 0; c < count && row < max_row; ++c) {
@@ -538,9 +519,7 @@ MotionParagraphForward(const MotionView& v, int count) {
     return {row, 0};
 }
 
-CursorPos
-MotionParagraphBackward(const MotionView& v,
-                                  int count) {
+CursorPos MotionParagraphBackward(const MotionView& v, int count) {
     int row = v.cursor_row;
     for (int c = 0; c < count && row > 0; ++c) {
         while (row > 0 && !(*v.lines)[row].empty())
@@ -551,8 +530,7 @@ MotionParagraphBackward(const MotionView& v,
     return {row, 0};
 }
 
-CursorPos
-MotionPercentMatch(const MotionView& v) {
+CursorPos MotionPercentMatch(const MotionView& v) {
     const auto& line = (*v.lines)[v.cursor_row];
     char target = 0;
     char under = (v.cursor_col < static_cast<int>(line.size()))
@@ -591,7 +569,7 @@ MotionPercentMatch(const MotionView& v) {
     if (forward) {
         if (col < static_cast<int>((*v.lines)[row].size()) &&
             (*v.lines)[row][col] == self) {
-            ++col;  // skip the character we are already on
+            ++col; // skip the character we are already on
         }
     }
 

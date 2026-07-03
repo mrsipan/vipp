@@ -1277,8 +1277,7 @@ void ViEditor::FinalizeBlockChange(EditorView& view) {
 // Motion functions
 // ============================================================================
 
-CursorPos ViEditor::MotionLeft(const EditorView& v,
-                                         int count) const {
+CursorPos ViEditor::MotionLeft(const EditorView& v, int count) const {
     int col = v.cursor_col;
     int row = v.cursor_row;
     for (int i = 0; i < count && (row > 0 || col > 0); ++i) {
@@ -1292,8 +1291,7 @@ CursorPos ViEditor::MotionLeft(const EditorView& v,
     return {row, col};
 }
 
-CursorPos ViEditor::MotionRight(const EditorView& v,
-                                          int count) const {
+CursorPos ViEditor::MotionRight(const EditorView& v, int count) const {
     int col = v.cursor_col;
     int row = v.cursor_row;
     int max_row = static_cast<int>(v.lines.size()) - 1;
@@ -1311,8 +1309,7 @@ CursorPos ViEditor::MotionRight(const EditorView& v,
     return {row, col};
 }
 
-CursorPos ViEditor::MotionDown(const EditorView& v,
-                                         int count) const {
+CursorPos ViEditor::MotionDown(const EditorView& v, int count) const {
     int row = std::min(v.cursor_row + count,
                        static_cast<int>(v.lines.size()) - 1);
     int col =
@@ -1320,16 +1317,14 @@ CursorPos ViEditor::MotionDown(const EditorView& v,
     return {row, col};
 }
 
-CursorPos ViEditor::MotionUp(const EditorView& v,
-                                       int count) const {
+CursorPos ViEditor::MotionUp(const EditorView& v, int count) const {
     int row = std::max(v.cursor_row - count, 0);
     int col =
         std::min(v.cursor_col, static_cast<int>(v.lines[row].size()));
     return {row, col};
 }
 
-CursorPos
-ViEditor::MotionLineStart(const EditorView& v) const {
+CursorPos ViEditor::MotionLineStart(const EditorView& v) const {
     return {v.cursor_row, 0};
 }
 
@@ -1338,8 +1333,7 @@ CursorPos ViEditor::MotionLineEnd(const EditorView& v) const {
             static_cast<int>(v.lines[v.cursor_row].size())};
 }
 
-CursorPos
-ViEditor::MotionFirstNonBlank(const EditorView& v) const {
+CursorPos ViEditor::MotionFirstNonBlank(const EditorView& v) const {
     const auto& line = v.lines[v.cursor_row];
     int col = 0;
     while (col < static_cast<int>(line.size()) &&
@@ -1348,8 +1342,7 @@ ViEditor::MotionFirstNonBlank(const EditorView& v) const {
     return {v.cursor_row, col};
 }
 
-CursorPos
-ViEditor::MotionFileStart(const EditorView& /*v*/) const {
+CursorPos ViEditor::MotionFileStart(const EditorView& /*v*/) const {
     return {0, 0};
 }
 
@@ -1358,7 +1351,7 @@ CursorPos ViEditor::MotionFileEnd(const EditorView& v) const {
 }
 
 CursorPos ViEditor::MotionWordForward(const EditorView& v,
-                                                int count) const {
+                                      int count) const {
     int row = v.cursor_row;
     int col = v.cursor_col;
     int max_row = static_cast<int>(v.lines.size()) - 1;
@@ -1397,7 +1390,7 @@ CursorPos ViEditor::MotionWordForward(const EditorView& v,
 }
 
 CursorPos ViEditor::MotionWordBackward(const EditorView& v,
-                                                 int count) const {
+                                       int count) const {
     int row = v.cursor_row;
     int col = v.cursor_col;
 
@@ -1433,7 +1426,7 @@ CursorPos ViEditor::MotionWordBackward(const EditorView& v,
 }
 
 CursorPos ViEditor::MotionWordEndForward(const EditorView& v,
-                                                   int count) const {
+                                         int count) const {
     int row = v.cursor_row;
     int col = v.cursor_col;
     int max_row = static_cast<int>(v.lines.size()) - 1;
@@ -1481,7 +1474,7 @@ CursorPos ViEditor::MotionWordEndForward(const EditorView& v,
 }
 
 CursorPos ViEditor::MotionBigWordForward(const EditorView& v,
-                                                   int count) const {
+                                         int count) const {
     int row = v.cursor_row;
     int col = v.cursor_col;
     int max_row = static_cast<int>(v.lines.size()) - 1;
@@ -1511,7 +1504,7 @@ CursorPos ViEditor::MotionBigWordForward(const EditorView& v,
 }
 
 CursorPos ViEditor::MotionBigWordBackward(const EditorView& v,
-                                                    int count) const {
+                                          int count) const {
     int row = v.cursor_row;
     int col = v.cursor_col;
     for (int c = 0; c < count; ++c) {
@@ -1531,9 +1524,8 @@ CursorPos ViEditor::MotionBigWordBackward(const EditorView& v,
     return {row, col};
 }
 
-CursorPos
-ViEditor::MotionBigWordEndForward(const EditorView& v,
-                                  int count) const {
+CursorPos ViEditor::MotionBigWordEndForward(const EditorView& v,
+                                            int count) const {
     int row = v.cursor_row;
     int col = v.cursor_col;
     int max_row = static_cast<int>(v.lines.size()) - 1;
@@ -1567,7 +1559,7 @@ ViEditor::MotionBigWordEndForward(const EditorView& v,
 }
 
 CursorPos ViEditor::MotionWordEndBackward(const EditorView& v,
-                                                    int count) const {
+                                          int count) const {
     int row = v.cursor_row;
     int col = v.cursor_col;
 
@@ -1665,9 +1657,8 @@ CursorPos ViEditor::MotionWordEndBackward(const EditorView& v,
     return {row, col};
 }
 
-CursorPos
-ViEditor::MotionBigWordEndBackward(const EditorView& v,
-                                   int count) const {
+CursorPos ViEditor::MotionBigWordEndBackward(const EditorView& v,
+                                             int count) const {
     int row = v.cursor_row;
     int col = v.cursor_col;
 
@@ -1739,9 +1730,8 @@ ViEditor::MotionBigWordEndBackward(const EditorView& v,
     return {row, col};
 }
 
-CursorPos ViEditor::MotionFindForward(const EditorView& v,
-                                                char target, int count,
-                                                bool till) const {
+CursorPos ViEditor::MotionFindForward(const EditorView& v, char target,
+                                      int count, bool till) const {
     int row = v.cursor_row;
     int col = v.cursor_col;
     int max_row = static_cast<int>(v.lines.size()) - 1;
@@ -1770,9 +1760,8 @@ CursorPos ViEditor::MotionFindForward(const EditorView& v,
     return {v.cursor_row, v.cursor_col}; // not found, stay
 }
 
-CursorPos ViEditor::MotionFindBackward(const EditorView& v,
-                                                 char target, int count,
-                                                 bool till) const {
+CursorPos ViEditor::MotionFindBackward(const EditorView& v, char target,
+                                       int count, bool till) const {
     int row = v.cursor_row;
     int col = v.cursor_col;
 
@@ -1801,8 +1790,8 @@ CursorPos ViEditor::MotionFindBackward(const EditorView& v,
     return {v.cursor_row, v.cursor_col};
 }
 
-CursorPos
-ViEditor::MotionParagraphForward(const EditorView& v, int count) const {
+CursorPos ViEditor::MotionParagraphForward(const EditorView& v,
+                                           int count) const {
     int row = v.cursor_row;
     int max_row = static_cast<int>(v.lines.size()) - 1;
     for (int c = 0; c < count && row < max_row; ++c) {
@@ -1816,9 +1805,8 @@ ViEditor::MotionParagraphForward(const EditorView& v, int count) const {
     return {row, 0};
 }
 
-CursorPos
-ViEditor::MotionParagraphBackward(const EditorView& v,
-                                  int count) const {
+CursorPos ViEditor::MotionParagraphBackward(const EditorView& v,
+                                            int count) const {
     int row = v.cursor_row;
     for (int c = 0; c < count && row > 0; ++c) {
         while (row > 0 && !v.lines[row].empty())
@@ -1829,8 +1817,7 @@ ViEditor::MotionParagraphBackward(const EditorView& v,
     return {row, 0};
 }
 
-CursorPos
-ViEditor::MotionPercentMatch(const EditorView& v) const {
+CursorPos ViEditor::MotionPercentMatch(const EditorView& v) const {
     const auto& line = v.lines[v.cursor_row];
     char target = 0;
     char under = (v.cursor_col < static_cast<int>(line.size()))
@@ -1869,7 +1856,7 @@ ViEditor::MotionPercentMatch(const EditorView& v) const {
     if (forward) {
         if (col < static_cast<int>(v.lines[row].size()) &&
             v.lines[row][col] == self) {
-            ++col;  // skip the character we are already on
+            ++col; // skip the character we are already on
         }
     }
 
