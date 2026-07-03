@@ -67,10 +67,17 @@ ldd vipp | grep ftxui         # should produce no output
 ## Run
 
 ```sh
+make          # build static vipp
 ./vipp [filename]
 ```
 
 If no filename is given, opens `untitled.txt`.
+
+## Test
+
+```sh
+make test     # build and run 39 motion tests
+```
 
 ---
 
@@ -279,3 +286,16 @@ Multi-key sequences are buffered until a full match (or mismatch) is detected.
 ### Multiple Files
 
 Each split can hold a different file. Use `:e` to switch the current view, or `:split file` / `:vsplit file` to open another file in a new split. Each view maintains independent undo, yank, and search state.
+
+### Project Structure
+
+```
+vipp/
+├── vi.cpp              # core editor (modes, rendering, undo, commands)
+├── motions.h / motions.cpp   # motion functions (pure, testable)
+├── tests/
+│   └── test_motions.cpp      # 39 tests for motion functions
+├── Makefile            # build, debug, test, format targets
+├── .clang-format       # code style config
+└── .github/workflows/  # CI/CD for Linux/macOS static builds
+```
