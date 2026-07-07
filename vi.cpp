@@ -91,7 +91,14 @@ struct UndoEntry {
     int first_line;             // first affected line index
     std::vector<std::string>
         old_lines;      // original content of the affected lines
-    int new_line_count; // how many lines the change produced
+    int new_line_count = 0; // how many lines the change produced
+
+    // Character-level granularity (for insert-mode word-boundary undo)
+    bool is_char_level = false;
+    int start_row = 0, start_col = 0;
+    int end_row = 0, end_col = 0; // cursor position after the change
+    std::string old_text;         // text that was there before
+    std::string new_text;         // text that was inserted
 };
 
 // ============================================================================
@@ -190,11 +197,12 @@ struct EditorView {
     std::vector<UndoEntry> undo_stack;
     int undo_index =
         -1; // points to last applied entry; -1 = no undo available
-    bool insert_undo_pending = false;
-    int insert_undo_start_row = 0;
-    int insert_undo_start_col = 0;
-    std::vector<std::string> insert_undo_old_lines;
-    int insert_undo_line_count = 0;
+
+    // ---- Per-view word-boundary tracking for fine-grained undo
+    bool insert_word_tracking = false;
+    int insert_word_row = 0;
+    int insert_word_col = 0;
+    std::string insert_accumulated;
 
     // ---- Per-view search ----
     std::string search_pattern;
@@ -411,6 +419,11 @@ private:
     // Undo
     // ================================================================
     void PushUndo(EditorView& view, int first_line, int line_count);
+    void PushCharUndo(EditorView& view, int s_row, int s_col,
+                      int e_row, int e_col,
+                      const std::string& old_t,
+                      const std::string& new_t);
+    void PushInsertWordUndo(EditorView& view);
     void FinalizeInsertUndo(EditorView& view);
     void BeginInsertUndo(EditorView& view);
     void Undo(EditorView& view);
@@ -651,7 +664,10 @@ void ViEditor::LoadFile(EditorView& view) {
     view.left_col = 0;
     view.undo_stack.clear();
     view.undo_index = -1;
-    view.insert_undo_pending = false;
+    view.insert_word_tracking = false;
+    view.insert_word_row = 0;
+    view.insert_word_col = 0;
+    view.insert_accumulated.clear();
     view.yank_register.clear();
     view.search_pattern.clear();
     view.last_search.clear();
@@ -978,6 +994,7 @@ void ViEditor::PushUndo(EditorView& view, int first_line,
         return;
 
     UndoEntry entry;
+    entry.is_char_level = false;
     entry.cursor_row = view.cursor_row;
     entry.cursor_col = view.cursor_col;
     entry.first_line = first_line;
@@ -997,43 +1014,20 @@ void ViEditor::PushUndo(EditorView& view, int first_line,
     view.undo_index = static_cast<int>(view.undo_stack.size()) - 1;
 }
 
-void ViEditor::FinalizeInsertUndo(EditorView& view) {
-    if (!view.insert_undo_pending)
-        return;
-    view.insert_undo_pending = false;
-
-    // The change covers from view.insert_undo_start_row through the
-    // current cursor row. All lines between them (inclusive) were
-    // potentially created/modified.
-    int last_line = view.cursor_row;
-    int first_line = view.insert_undo_start_row;
-
+void ViEditor::PushCharUndo(EditorView& view, int s_row, int s_col,
+                            int e_row, int e_col,
+                            const std::string& old_t,
+                            const std::string& new_t) {
     UndoEntry entry;
-    entry.cursor_row = view.insert_undo_start_row;
-    entry.cursor_col = view.insert_undo_start_col;
-    entry.first_line = first_line;
-    entry.old_lines = std::move(view.insert_undo_old_lines);
-    entry.new_line_count = (last_line - first_line + 1);
-
-    // If nothing changed (entered and left insert without typing),
-    // don't record
-    bool changed = false;
-    if (entry.old_lines.size() !=
-        static_cast<size_t>(entry.new_line_count))
-        changed = true;
-    else {
-        for (int i = 0;
-             i < entry.new_line_count &&
-             first_line + i < static_cast<int>(view.lines.size());
-             ++i) {
-            if (entry.old_lines[i] != view.lines[first_line + i]) {
-                changed = true;
-                break;
-            }
-        }
-    }
-    if (!changed)
-        return;
+    entry.is_char_level = true;
+    entry.cursor_row = s_row;
+    entry.cursor_col = s_col;
+    entry.start_row = s_row;
+    entry.start_col = s_col;
+    entry.end_row = e_row;
+    entry.end_col = e_col;
+    entry.old_text = old_t;
+    entry.new_text = new_t;
 
     if (view.undo_index + 1 < static_cast<int>(view.undo_stack.size()))
         view.undo_stack.resize(view.undo_index + 1);
@@ -1042,14 +1036,32 @@ void ViEditor::FinalizeInsertUndo(EditorView& view) {
     view.undo_index = static_cast<int>(view.undo_stack.size()) - 1;
 }
 
+void ViEditor::PushInsertWordUndo(EditorView& view) {
+    if (!view.insert_word_tracking || view.insert_accumulated.empty())
+        return;
+    int s_row = view.insert_word_row;
+    int s_col = view.insert_word_col;
+    int e_row = view.cursor_row;
+    int e_col = view.cursor_col;
+    PushCharUndo(view, s_row, s_col, e_row, e_col, "",
+                 view.insert_accumulated);
+    view.insert_word_row = e_row;
+    view.insert_word_col = e_col;
+    view.insert_accumulated.clear();
+}
+
 void ViEditor::BeginInsertUndo(EditorView& view) {
-    view.insert_undo_pending = true;
-    view.insert_undo_start_row = view.cursor_row;
-    view.insert_undo_start_col = view.cursor_col;
-    view.insert_undo_old_lines.clear();
-    // Snapshot the current line (before any insert modifications)
-    view.insert_undo_old_lines.push_back(view.lines[view.cursor_row]);
-    view.insert_undo_line_count = 1;
+    // Start word-boundary tracking for fine-grained undo
+    view.insert_word_tracking = false;
+    view.insert_word_row = view.cursor_row;
+    view.insert_word_col = view.cursor_col;
+    view.insert_accumulated.clear();
+}
+
+void ViEditor::FinalizeInsertUndo(EditorView& view) {
+    // Push any remaining accumulated word text
+    PushInsertWordUndo(view);
+    view.insert_word_tracking = false;
 }
 
 void ViEditor::Undo(EditorView& view) {
@@ -1061,6 +1073,33 @@ void ViEditor::Undo(EditorView& view) {
 
     UndoEntry& entry = view.undo_stack[view.undo_index];
 
+    if (entry.is_char_level) {
+        // Character-level undo: remove new_text, restore old_text
+        std::string& line = view.lines[entry.start_row];
+        if (entry.start_col + static_cast<int>(entry.new_text.size()) <=
+            static_cast<int>(line.size())) {
+            line.erase(entry.start_col,
+                       static_cast<int>(entry.new_text.size()));
+        }
+        if (!entry.old_text.empty())
+            line.insert(entry.start_col, entry.old_text);
+
+        // Swap texts so redo can restore the forward state
+        std::swap(entry.old_text, entry.new_text);
+
+        view.cursor_row = std::clamp(
+            entry.cursor_row, 0, static_cast<int>(view.lines.size()) - 1);
+        view.cursor_col = std::clamp(
+            entry.cursor_col, 0,
+            static_cast<int>(view.lines[view.cursor_row].size()));
+        view.modified = true;
+        --view.undo_index;
+        UpdateScroll(view);
+        SetStatus("Undo");
+        return;
+    }
+
+    // Line-level undo (original behaviour)
     // Compute how many lines the change produced (current state from
     // first_line)
     int current_count = 0;
@@ -1133,6 +1172,36 @@ void ViEditor::Redo(EditorView& view) {
 
     UndoEntry& entry = view.undo_stack[redo_idx];
 
+    if (entry.is_char_level) {
+        // Character-level redo: same logic as undo (remove new_text,
+        // insert old_text) since undo already swapped them
+        std::string& line = view.lines[entry.start_row];
+        if (entry.start_col + static_cast<int>(entry.new_text.size()) <=
+            static_cast<int>(line.size())) {
+            line.erase(entry.start_col,
+                       static_cast<int>(entry.new_text.size()));
+        }
+        if (!entry.old_text.empty())
+            line.insert(entry.start_col, entry.old_text);
+
+        // Swap texts back for potential re-undo
+        std::swap(entry.old_text, entry.new_text);
+
+        // Cursor goes to the position it was at after the original change
+        view.cursor_row =
+            std::clamp(entry.end_row, 0,
+                       static_cast<int>(view.lines.size()) - 1);
+        view.cursor_col =
+            std::clamp(entry.end_col, 0,
+                       static_cast<int>(view.lines[view.cursor_row].size()));
+        view.modified = true;
+        view.undo_index = redo_idx;
+        UpdateScroll(view);
+        SetStatus("Redo");
+        return;
+    }
+
+    // Line-level redo (original behaviour)
     // Save current lines as the "old" state for potential undo
     int current_count =
         entry.new_line_count; // this was set during undo
@@ -2317,19 +2386,10 @@ void ViEditor::ExecuteOperator(EditorView& view, OperatorType op,
         break;
     }
     case OperatorType::CHANGE: {
-        // Snapshot pre-change state for undo (the entire c<motion>
-        // including subsequent insert)
+        // Push line-level undo for the deletion part
         int change_sr = std::min(adjusted.start_row, adjusted.end_row);
         int change_er = std::max(adjusted.start_row, adjusted.end_row);
-        view.insert_undo_pending = true;
-        view.insert_undo_start_row = view.cursor_row;
-        view.insert_undo_start_col = view.cursor_col;
-        view.insert_undo_old_lines.clear();
-        int snap_end = std::min(change_er + 1,
-                                static_cast<int>(view.lines.size()));
-        for (int i = change_sr; i < snap_end; ++i)
-            view.insert_undo_old_lines.push_back(view.lines[i]);
-        view.insert_undo_line_count = snap_end - change_sr;
+        PushUndo(view, change_sr, change_er - change_sr + 1);
 
         auto yanked = ExtractRange(view, adjusted);
         if (adjusted.start_col == 0 && adjusted.end_col == 0) {
@@ -2337,20 +2397,20 @@ void ViEditor::ExecuteOperator(EditorView& view, OperatorType op,
             adjusted = {change_sr, 0, change_er,
                         static_cast<int>(view.lines[change_er].size())};
             yanked = ExtractRange(view, adjusted);
+            // Re-push undo with expanded range for linewise
+            view.undo_stack.pop_back();
+            --view.undo_index;
+            PushUndo(view, change_sr, change_er - change_sr + 1);
         }
-        // Note: no PushUndo here - the undo is finalized when leaving
-        // insert mode
+        // The typing part will use char-level word-boundary undo entries
         DeleteRange(view, adjusted);
         view.yank_register = yanked;
         view.yank_linewise = linewise;
         view.yank_blockwise = false;
         RecordChange(op, adjusted, linewise);
         if (linewise) {
-            // Cursor is already on the now-empty line; just enter
-            // insert mode
             view.cursor_col = 0;
         } else {
-            // Place cursor at the start of the deleted range
             if (adjusted.start_row <= adjusted.end_row) {
                 view.cursor_row = adjusted.start_row;
                 view.cursor_col = adjusted.start_col;
@@ -2457,9 +2517,8 @@ void ViEditor::RepeatLastChange() {
     EditorView& view = active();
     if (last_change_.op == OperatorType::CHANGE &&
         !last_change_.inserted_text.empty()) {
-        // Insert mode change: repeat the inserted text
-        // First move cursor forward by one (like after 'a')
-        // Actually for dot, we repeat the change at cursor position
+        // Push line-level undo for the entire dot repeat
+        PushUndo(view, view.cursor_row, 1);
         mode_ = Mode::INSERT;
         recording_insert_ = false;
         for (char c : last_change_.inserted_text) {
@@ -2485,8 +2544,10 @@ void ViEditor::RepeatLastChange() {
     } else if (last_change_.op == OperatorType::DELETE_OP) {
         // Re-execute delete on the same range shape, starting from
         // cursor
+        PushUndo(view, last_change_.range.start_row, 1);
         DeleteRange(view, last_change_.range);
     } else if (last_change_.op == OperatorType::CHANGE) {
+        PushUndo(view, last_change_.range.start_row, 1);
         DeleteRange(view, last_change_.range);
         mode_ = Mode::INSERT;
     }
@@ -3461,6 +3522,70 @@ bool ViEditor::OnEvent(Event event) {
     if (status_timeout_ > 0)
         --status_timeout_;
 
+    // Global Ctrl-C: behaves like Vim — aborts pending operations and
+    // returns to Normal mode (unlike Escape, does not trigger
+    // InsertLeave finalization or cursor adjustment)
+    if (event == Event::Special({3})) {
+        // Cancel all pending multi-key state machines
+        g_pending_ = false;
+        z_pending_ = false;
+        Z_pending_ = false;
+        find_pending_ = false;
+        text_obj_pending_ = false;
+        ctrl_w_pending_ = false;
+        ctrl_o_pending_ = 0;
+        pending_op_ = OperatorType::NONE;
+        pending_count_ = 0;
+        motion_count_ = 0;
+        count_acc_ = 0;
+        mapping_buffer_.clear();
+        recording_insert_ = false;
+        block_change_pending_ = false;
+
+        if (mode_ == Mode::INSERT) {
+            // Exit insert mode: finalize word-boundary undo but
+            // cancel block changes, don't record for dot, don't
+            // move cursor left (unlike Escape)
+            FinalizeInsertUndo(active());
+            mode_ = Mode::NORMAL;
+            SetStatus("Interrupted");
+            return true;
+        }
+        if (mode_ == Mode::COMMAND) {
+            command_line_.clear();
+            mode_ = Mode::NORMAL;
+            SetStatus("Interrupted");
+            return true;
+        }
+        if (mode_ == Mode::SEARCH_FORWARD ||
+            mode_ == Mode::SEARCH_BACKWARD) {
+            active().search_matches.clear();
+            active().search_pattern.clear();
+            active().current_match_idx = -1;
+            command_line_.clear();
+            mode_ = Mode::NORMAL;
+            SetStatus("Interrupted");
+            return true;
+        }
+        if (mode_ == Mode::VISUAL || mode_ == Mode::VISUAL_LINE ||
+            mode_ == Mode::VISUAL_BLOCK) {
+            ExitVisual();
+            SetStatus("Interrupted");
+            return true;
+        }
+        if (mode_ == Mode::OPERATOR_PENDING) {
+            mode_ = Mode::NORMAL;
+            SetStatus("Interrupted");
+            return true;
+        }
+        // Normal mode: just clear any pending state (already done above)
+        if (mode_ == Mode::NORMAL) {
+            SetStatus("Interrupted");
+            return true;
+        }
+        return true;
+    }
+
     // Global Escape to return to normal mode
     if (event == Event::Escape) {
         if (mode_ != Mode::NORMAL && mode_ != Mode::INSERT) {
@@ -4140,6 +4265,7 @@ bool ViEditor::OnNormalEvent(Event event) {
             }
             if (c == 'o') {
                 BeginInsertUndo(view);
+                PushUndo(view, view.cursor_row, 1);
                 view.lines.insert(
                     view.lines.begin() + view.cursor_row + 1, "");
                 ++view.cursor_row;
@@ -4154,6 +4280,7 @@ bool ViEditor::OnNormalEvent(Event event) {
             }
             if (c == 'O') {
                 BeginInsertUndo(view);
+                PushUndo(view, view.cursor_row, 1);
                 view.lines.insert(view.lines.begin() + view.cursor_row,
                                   "");
                 view.cursor_col = 0;
@@ -4372,6 +4499,10 @@ bool ViEditor::OnInsertEvent(Event event) {
     }
 
     if (event == Event::Return) {
+        // Push accumulated word text before the newline
+        PushInsertWordUndo(view);
+        // Push line-level undo for the line split
+        PushUndo(view, view.cursor_row, 2);
         std::string& line = view.lines[view.cursor_row];
         // Compute leading whitespace of current line for auto-indent
         int indent = 0;
@@ -4388,6 +4519,10 @@ bool ViEditor::OnInsertEvent(Event event) {
         view.cursor_col = indent;
         view.modified = true;
         UpdateScroll(view);
+        // Reset word tracking after structural change
+        view.insert_word_row = view.cursor_row;
+        view.insert_word_col = view.cursor_col;
+        view.insert_accumulated.clear();
         if (recording_insert_)
             insert_recording_ += '\n';
         return true;
@@ -4395,12 +4530,33 @@ bool ViEditor::OnInsertEvent(Event event) {
 
     if (event == Event::Backspace || event == Event::Delete) {
         if (view.cursor_col > 0) {
+            // Push accumulated word text before the deletion
+            PushInsertWordUndo(view);
+            // Record the character being deleted for undo
+            char deleted =
+                view.lines[view.cursor_row][view.cursor_col - 1];
+            int pre_col = view.cursor_col; // position before deletion
             if (recording_insert_ && !insert_recording_.empty())
                 insert_recording_.pop_back();
             view.lines[view.cursor_row].erase(view.cursor_col - 1, 1);
             --view.cursor_col;
             view.modified = true;
+            // Push char-level undo for the deletion
+            // cursor before change = (row, pre_col); after = (row, pre_col-1)
+            PushCharUndo(view, view.cursor_row, view.cursor_col,
+                         view.cursor_row, view.cursor_col,
+                         std::string(1, deleted), "");
+            // Override cursor pos in the entry to pre-deletion position
+            view.undo_stack.back().cursor_row = view.cursor_row;
+            view.undo_stack.back().cursor_col = pre_col;
+            // Reset word tracking to current position
+            view.insert_word_row = view.cursor_row;
+            view.insert_word_col = view.cursor_col;
+            view.insert_accumulated.clear();
         } else if (view.cursor_row > 0) {
+            PushInsertWordUndo(view);
+            // Joining lines: use line-level undo
+            PushUndo(view, view.cursor_row - 1, 2);
             if (recording_insert_ && !insert_recording_.empty())
                 insert_recording_.pop_back();
             std::string& prev = view.lines[view.cursor_row - 1];
@@ -4412,6 +4568,9 @@ bool ViEditor::OnInsertEvent(Event event) {
             --view.cursor_row;
             view.modified = true;
             UpdateScroll(view);
+            view.insert_word_row = view.cursor_row;
+            view.insert_word_col = view.cursor_col;
+            view.insert_accumulated.clear();
         }
         return true;
     }
@@ -4427,6 +4586,8 @@ bool ViEditor::OnInsertEvent(Event event) {
     // Ctrl-W: delete word before cursor (FTXUI sends Ctrl+key as
     // Event::Special)
     if (event == Event::Special({23})) {
+        // Push accumulated word text before Ctrl-W deletion
+        PushInsertWordUndo(view);
         if (view.cursor_col == 0) {
             // At start of line: join with previous line
             if (view.cursor_row > 0) {
@@ -4468,6 +4629,10 @@ bool ViEditor::OnInsertEvent(Event event) {
                 view.modified = true;
             }
         }
+        // Reset word tracking after Ctrl-W deletion
+        view.insert_word_row = view.cursor_row;
+        view.insert_word_col = view.cursor_col;
+        view.insert_accumulated.clear();
         return true;
     }
 
@@ -4486,10 +4651,41 @@ bool ViEditor::OnInsertEvent(Event event) {
     if (event.is_character()) {
         std::string ch = event.character();
         if (ch.size() == 1 && ch[0] >= 32 && ch[0] <= 126) {
-            InsertChar(view, ch[0]);
+            char c = ch[0];
+            bool is_word = IsWordChar(static_cast<unsigned char>(c));
+            bool is_space = IsSpaceOrTab(c);
+            bool is_punct = !is_word && !is_space;
+
+            // Check if the new char belongs to a different chunk class
+            if (!view.insert_accumulated.empty()) {
+                char first = view.insert_accumulated[0];
+                bool acc_is_word =
+                    IsWordChar(static_cast<unsigned char>(first));
+                bool acc_is_space = IsSpaceOrTab(first);
+                if (is_word != acc_is_word || is_space != acc_is_space) {
+                    // Class changed: push accumulated text as undo entry
+                    PushInsertWordUndo(view);
+                }
+            }
+
+            InsertChar(view, c);
+
+            // Track for word-boundary undo
+            if (!view.insert_word_tracking) {
+                view.insert_word_tracking = true;
+                view.insert_word_row = view.cursor_row;
+                view.insert_word_col = view.cursor_col - 1;
+                view.insert_accumulated.clear();
+            }
+            view.insert_accumulated += c;
+
+            // Each punctuation character is its own undo entry
+            if (is_punct)
+                PushInsertWordUndo(view);
+
             UpdateScroll(view);
             if (recording_insert_)
-                insert_recording_ += ch[0];
+                insert_recording_ += c;
         }
         return true;
     }
@@ -5221,6 +5417,7 @@ Component ViEditor::GetComponent() {
 
 void ViEditor::Run() {
     auto screen = ScreenInteractive::Fullscreen();
+    screen.ForceHandleCtrlC(false); // let us handle Ctrl-C ourselves
     screen_ = &screen;
     screen.Loop(GetComponent());
 }
