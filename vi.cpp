@@ -178,33 +178,28 @@ static std::vector<SyntaxDefinition> kLanguages = {
      }},
 };
 
-struct EditorView {
+struct Buffer {
     std::string filename;
     std::vector<std::string> lines;
-    int cursor_row = 0;
-    int cursor_col = 0;
-    int top_row = 0;
-    int left_col = 0;
     bool modified = false;
-    bool active = true;
 
-    // ---- Per-view yank register ----
+    // ---- Yank register ----
     std::vector<std::string> yank_register;
     bool yank_linewise = false;
     bool yank_blockwise = false;
 
-    // ---- Per-view undo ----
+    // ---- Undo ----
     std::vector<UndoEntry> undo_stack;
     int undo_index =
         -1; // points to last applied entry; -1 = no undo available
 
-    // ---- Per-view word-boundary tracking for fine-grained undo
+    // ---- Word-boundary tracking for fine-grained undo
     bool insert_word_tracking = false;
     int insert_word_row = 0;
     int insert_word_col = 0;
     std::string insert_accumulated;
 
-    // ---- Per-view search ----
+    // ---- Search ----
     std::string search_pattern;
     std::string last_search;
     bool search_highlight = true;
@@ -213,6 +208,15 @@ struct EditorView {
 
     // ---- Syntax highlighting ----
     SyntaxHighlighter highlighter;
+};
+
+struct EditorView {
+    std::shared_ptr<Buffer> buf;
+    int cursor_row = 0;
+    int cursor_col = 0;
+    int top_row = 0;
+    int left_col = 0;
+    bool active = true;
 };
 
 // ============================================================================
@@ -635,7 +639,8 @@ std::string ViEditor::EventToString(const Event& e) const {
 
 ViEditor::ViEditor(std::string filename) {
     EditorView view;
-    view.filename = std::move(filename);
+    view.buf = std::make_shared<Buffer>();
+    view.buf->filename = std::move(filename);
     LoadFile(view);
     views_.push_back(std::move(view));
 
@@ -644,51 +649,51 @@ ViEditor::ViEditor(std::string filename) {
 }
 
 void ViEditor::LoadFile(EditorView& view) {
-    std::ifstream file(view.filename);
-    view.lines.clear();
-    view.highlighter.SetLanguage(view.filename);
+    std::ifstream file(view.buf->filename);
+    view.buf->lines.clear();
+    view.buf->highlighter.SetLanguage(view.buf->filename);
     if (!file.is_open()) {
-        view.lines.emplace_back("");
-        SetStatus("New file: " + view.filename);
+        view.buf->lines.emplace_back("");
+        SetStatus("New file: " + view.buf->filename);
         return;
     }
     std::string line;
     while (std::getline(file, line))
-        view.lines.push_back(std::move(line));
-    if (view.lines.empty())
-        view.lines.emplace_back("");
-    view.modified = false;
+        view.buf->lines.push_back(std::move(line));
+    if (view.buf->lines.empty())
+        view.buf->lines.emplace_back("");
+    view.buf->modified = false;
     view.cursor_row = 0;
     view.cursor_col = 0;
     view.top_row = 0;
     view.left_col = 0;
-    view.undo_stack.clear();
-    view.undo_index = -1;
-    view.insert_word_tracking = false;
-    view.insert_word_row = 0;
-    view.insert_word_col = 0;
-    view.insert_accumulated.clear();
-    view.yank_register.clear();
-    view.search_pattern.clear();
-    view.last_search.clear();
-    view.search_matches.clear();
-    view.current_match_idx = -1;
-    SetStatus("Loaded " + view.filename);
+    view.buf->undo_stack.clear();
+    view.buf->undo_index = -1;
+    view.buf->insert_word_tracking = false;
+    view.buf->insert_word_row = 0;
+    view.buf->insert_word_col = 0;
+    view.buf->insert_accumulated.clear();
+    view.buf->yank_register.clear();
+    view.buf->search_pattern.clear();
+    view.buf->last_search.clear();
+    view.buf->search_matches.clear();
+    view.buf->current_match_idx = -1;
+    SetStatus("Loaded " + view.buf->filename);
 }
 
 void ViEditor::SaveFile(EditorView& view) {
-    std::ofstream file(view.filename);
+    std::ofstream file(view.buf->filename);
     if (!file.is_open()) {
-        SetStatus("Cannot write to " + view.filename);
+        SetStatus("Cannot write to " + view.buf->filename);
         return;
     }
-    for (size_t i = 0; i < view.lines.size(); ++i) {
-        file << view.lines[i];
-        if (i + 1 < view.lines.size())
+    for (size_t i = 0; i < view.buf->lines.size(); ++i) {
+        file << view.buf->lines[i];
+        if (i + 1 < view.buf->lines.size())
             file << '\n';
     }
-    view.modified = false;
-    SetStatus("Saved " + view.filename);
+    view.buf->modified = false;
+    SetStatus("Saved " + view.buf->filename);
 }
 
 // ============================================================================
@@ -717,7 +722,7 @@ void ViEditor::UpdateScroll(EditorView& view) {
     if (view.top_row < 0)
         view.top_row = 0;
     int max_top =
-        std::max(0, static_cast<int>(view.lines.size()) - visible_rows);
+        std::max(0, static_cast<int>(view.buf->lines.size()) - visible_rows);
     if (view.top_row > max_top)
         view.top_row = max_top;
 
@@ -738,8 +743,8 @@ void ViEditor::MoveCursor(EditorView& view, int drow, int dcol) {
     int new_row = view.cursor_row + drow;
     int new_col = view.cursor_col + dcol;
     new_row =
-        std::clamp(new_row, 0, static_cast<int>(view.lines.size()) - 1);
-    const std::string& line = view.lines[new_row];
+        std::clamp(new_row, 0, static_cast<int>(view.buf->lines.size()) - 1);
+    const std::string& line = view.buf->lines[new_row];
     new_col = std::clamp(new_col, 0, static_cast<int>(line.size()));
     view.cursor_row = new_row;
     view.cursor_col = new_col;
@@ -751,37 +756,37 @@ void ViEditor::MoveCursor(EditorView& view, int drow, int dcol) {
 // ============================================================================
 
 void ViEditor::InsertChar(EditorView& view, char c) {
-    std::string& line = view.lines[view.cursor_row];
+    std::string& line = view.buf->lines[view.cursor_row];
     if (view.cursor_col <= static_cast<int>(line.size())) {
         line.insert(line.begin() + view.cursor_col, c);
         ++view.cursor_col;
-        view.modified = true;
+        view.buf->modified = true;
     }
 }
 
 void ViEditor::DeleteChar(EditorView& view) {
-    std::string& line = view.lines[view.cursor_row];
+    std::string& line = view.buf->lines[view.cursor_row];
     if (!line.empty() &&
         view.cursor_col < static_cast<int>(line.size())) {
         line.erase(view.cursor_col, 1);
-        view.modified = true;
+        view.buf->modified = true;
     } else if (!line.empty() &&
                view.cursor_col == static_cast<int>(line.size())) {
         // Join with next line
-        if (view.cursor_row + 1 < static_cast<int>(view.lines.size())) {
-            line += view.lines[view.cursor_row + 1];
-            view.lines.erase(view.lines.begin() + view.cursor_row + 1,
-                             view.lines.begin() + view.cursor_row + 1 +
+        if (view.cursor_row + 1 < static_cast<int>(view.buf->lines.size())) {
+            line += view.buf->lines[view.cursor_row + 1];
+            view.buf->lines.erase(view.buf->lines.begin() + view.cursor_row + 1,
+                             view.buf->lines.begin() + view.cursor_row + 1 +
                                  1);
-            view.modified = true;
+            view.buf->modified = true;
         }
-    } else if (line.empty() && view.lines.size() > 1) {
-        view.lines.erase(view.lines.begin() + view.cursor_row,
-                         view.lines.begin() + view.cursor_row + 1);
-        if (view.cursor_row >= static_cast<int>(view.lines.size()))
-            view.cursor_row = static_cast<int>(view.lines.size()) - 1;
+    } else if (line.empty() && view.buf->lines.size() > 1) {
+        view.buf->lines.erase(view.buf->lines.begin() + view.cursor_row,
+                         view.buf->lines.begin() + view.cursor_row + 1);
+        if (view.cursor_row >= static_cast<int>(view.buf->lines.size()))
+            view.cursor_row = static_cast<int>(view.buf->lines.size()) - 1;
         view.cursor_col = 0;
-        view.modified = true;
+        view.buf->modified = true;
         UpdateScroll(view);
     }
 }
@@ -790,14 +795,14 @@ void ViEditor::DeleteRange(EditorView& view, const Range& r) {
     if (r.start_row == r.end_row) {
         int start = std::min(r.start_col, r.end_col);
         int end = std::max(r.start_col, r.end_col);
-        int line_len = static_cast<int>(view.lines[r.start_row].size());
+        int line_len = static_cast<int>(view.buf->lines[r.start_row].size());
         // If deleting the entire line, remove the line itself
         if (start == 0 && end >= line_len) {
-            view.lines.erase(view.lines.begin() + r.start_row);
-            if (view.lines.empty())
-                view.lines.emplace_back("");
+            view.buf->lines.erase(view.buf->lines.begin() + r.start_row);
+            if (view.buf->lines.empty())
+                view.buf->lines.emplace_back("");
         } else {
-            view.lines[r.start_row].erase(start, end - start);
+            view.buf->lines[r.start_row].erase(start, end - start);
         }
     } else {
         int first_row = std::min(r.start_row, r.end_row);
@@ -807,13 +812,13 @@ void ViEditor::DeleteRange(EditorView& view, const Range& r) {
         int last_col =
             (r.start_row <= r.end_row) ? r.end_col : r.start_col;
 
-        view.lines[first_row].erase(first_col);
-        view.lines[first_row] += view.lines[last_row].substr(last_col);
+        view.buf->lines[first_row].erase(first_col);
+        view.buf->lines[first_row] += view.buf->lines[last_row].substr(last_col);
         for (int i = last_row; i > first_row; --i)
-            view.lines.erase(view.lines.begin() + i,
-                             view.lines.begin() + i + 1);
+            view.buf->lines.erase(view.buf->lines.begin() + i,
+                             view.buf->lines.begin() + i + 1);
     }
-    view.modified = true;
+    view.buf->modified = true;
 }
 
 std::vector<std::string> ViEditor::ExtractRange(EditorView& view,
@@ -825,23 +830,23 @@ std::vector<std::string> ViEditor::ExtractRange(EditorView& view,
     int last_col = std::max(r.start_col, r.end_col);
 
     if (first_row == last_row) {
-        result.push_back(view.lines[first_row].substr(
+        result.push_back(view.buf->lines[first_row].substr(
             first_col, last_col - first_col));
     } else {
         // Determine direction
         if (r.start_row <= r.end_row) {
             result.push_back(
-                view.lines[r.start_row].substr(r.start_col));
+                view.buf->lines[r.start_row].substr(r.start_col));
             for (int i = r.start_row + 1; i < r.end_row; ++i)
-                result.push_back(view.lines[i]);
+                result.push_back(view.buf->lines[i]);
             result.push_back(
-                view.lines[r.end_row].substr(0, r.end_col));
+                view.buf->lines[r.end_row].substr(0, r.end_col));
         } else {
-            result.push_back(view.lines[r.end_row].substr(r.end_col));
+            result.push_back(view.buf->lines[r.end_row].substr(r.end_col));
             for (int i = r.end_row + 1; i < r.start_row; ++i)
-                result.push_back(view.lines[i]);
+                result.push_back(view.buf->lines[i]);
             result.push_back(
-                view.lines[r.start_row].substr(0, r.start_col));
+                view.buf->lines[r.start_row].substr(0, r.start_col));
         }
     }
     return result;
@@ -858,14 +863,14 @@ void ViEditor::PutAfter(EditorView& view,
     if (linewise) {
         int ins_row = view.cursor_row + 1;
         for (const auto& t : text) {
-            view.lines.insert(view.lines.begin() + ins_row, t);
+            view.buf->lines.insert(view.buf->lines.begin() + ins_row, t);
             ++ins_row;
         }
         view.cursor_row = std::min(
-            ins_row - 1, static_cast<int>(view.lines.size()) - 1);
+            ins_row - 1, static_cast<int>(view.buf->lines.size()) - 1);
         view.cursor_col = 0;
     } else {
-        std::string& line = view.lines[view.cursor_row];
+        std::string& line = view.buf->lines[view.cursor_row];
         if (text.size() == 1) {
             int ins = std::min(view.cursor_col + 1,
                                static_cast<int>(line.size()));
@@ -879,24 +884,24 @@ void ViEditor::PutAfter(EditorView& view,
             line += text[0];
             int ins_row = view.cursor_row + 1;
             for (size_t i = 1; i < text.size() - 1; ++i) {
-                view.lines.insert(view.lines.begin() + ins_row,
+                view.buf->lines.insert(view.buf->lines.begin() + ins_row,
                                   text[i]);
                 ++ins_row;
             }
             if (text.size() > 1) {
                 std::string last = text.back();
-                if (ins_row < static_cast<int>(view.lines.size())) {
-                    last += view.lines[ins_row];
-                    view.lines[ins_row] = last;
+                if (ins_row < static_cast<int>(view.buf->lines.size())) {
+                    last += view.buf->lines[ins_row];
+                    view.buf->lines[ins_row] = last;
                 } else {
-                    view.lines.push_back(last);
+                    view.buf->lines.push_back(last);
                 }
             }
             view.cursor_row = ins_row;
             view.cursor_col = text.back().size() - 1;
         }
     }
-    view.modified = true;
+    view.buf->modified = true;
     UpdateScroll(view);
 }
 
@@ -911,13 +916,13 @@ void ViEditor::PutBefore(EditorView& view,
     if (linewise) {
         int ins_row = view.cursor_row;
         for (const auto& t : text) {
-            view.lines.insert(view.lines.begin() + ins_row, t);
+            view.buf->lines.insert(view.buf->lines.begin() + ins_row, t);
             ++ins_row;
         }
         view.cursor_row = ins_row - static_cast<int>(text.size());
         view.cursor_col = 0;
     } else {
-        std::string& line = view.lines[view.cursor_row];
+        std::string& line = view.buf->lines[view.cursor_row];
         if (text.size() == 1) {
             line.insert(view.cursor_col, text[0]);
             view.cursor_col += static_cast<int>(text[0].size()) - 1;
@@ -927,19 +932,19 @@ void ViEditor::PutBefore(EditorView& view,
             line += text[0];
             int ins_row = view.cursor_row + 1;
             for (size_t i = 1; i < text.size() - 1; ++i) {
-                view.lines.insert(view.lines.begin() + ins_row,
+                view.buf->lines.insert(view.buf->lines.begin() + ins_row,
                                   text[i]);
                 ++ins_row;
             }
             if (text.size() > 1) {
-                view.lines.insert(view.lines.begin() + ins_row,
+                view.buf->lines.insert(view.buf->lines.begin() + ins_row,
                                   text.back() + after);
             }
             view.cursor_row = ins_row;
             view.cursor_col = text.back().size() - 1;
         }
     }
-    view.modified = true;
+    view.buf->modified = true;
     UpdateScroll(view);
 }
 
@@ -948,26 +953,26 @@ void ViEditor::IndentRange(EditorView& view, const Range& r,
     int first = std::min(r.start_row, r.end_row);
     int last = std::max(r.start_row, r.end_row);
     for (int i = first;
-         i <= last && i < static_cast<int>(view.lines.size()); ++i) {
-        if (!view.lines[i].empty()) {
+         i <= last && i < static_cast<int>(view.buf->lines.size()); ++i) {
+        if (!view.buf->lines[i].empty()) {
             if (increase) {
-                view.lines[i].insert(0, "  ");
+                view.buf->lines[i].insert(0, "  ");
             } else {
-                if (view.lines[i].size() >= 2 &&
-                    view.lines[i][0] == ' ' && view.lines[i][1] == ' ')
-                    view.lines[i].erase(0, 2);
-                else if (!view.lines[i].empty() &&
-                         view.lines[i][0] == ' ')
-                    view.lines[i].erase(0, 1);
+                if (view.buf->lines[i].size() >= 2 &&
+                    view.buf->lines[i][0] == ' ' && view.buf->lines[i][1] == ' ')
+                    view.buf->lines[i].erase(0, 2);
+                else if (!view.buf->lines[i].empty() &&
+                         view.buf->lines[i][0] == ' ')
+                    view.buf->lines[i].erase(0, 1);
             }
         }
     }
-    view.modified = true;
+    view.buf->modified = true;
 }
 
 void ViEditor::ToggleCaseRange(EditorView& view, const Range& r) {
     if (r.start_row == r.end_row) {
-        std::string& line = view.lines[r.start_row];
+        std::string& line = view.buf->lines[r.start_row];
         for (int i = r.start_col;
              i < r.end_col && i < static_cast<int>(line.size()); ++i) {
             if (std::islower(static_cast<unsigned char>(line[i])))
@@ -978,7 +983,7 @@ void ViEditor::ToggleCaseRange(EditorView& view, const Range& r) {
                     std::tolower(static_cast<unsigned char>(line[i])));
         }
     }
-    view.modified = true;
+    view.buf->modified = true;
 }
 
 // ============================================================================
@@ -1002,16 +1007,16 @@ void ViEditor::PushUndo(EditorView& view, int first_line,
                               // current state, or we compute it now
 
     int end = std::min(first_line + line_count,
-                       static_cast<int>(view.lines.size()));
+                       static_cast<int>(view.buf->lines.size()));
     for (int i = first_line; i < end; ++i)
-        entry.old_lines.push_back(view.lines[i]);
+        entry.old_lines.push_back(view.buf->lines[i]);
 
-    // Discard any redo entries beyond view.undo_index
-    if (view.undo_index + 1 < static_cast<int>(view.undo_stack.size()))
-        view.undo_stack.resize(view.undo_index + 1);
+    // Discard any redo entries beyond view.buf->undo_index
+    if (view.buf->undo_index + 1 < static_cast<int>(view.buf->undo_stack.size()))
+        view.buf->undo_stack.resize(view.buf->undo_index + 1);
 
-    view.undo_stack.push_back(std::move(entry));
-    view.undo_index = static_cast<int>(view.undo_stack.size()) - 1;
+    view.buf->undo_stack.push_back(std::move(entry));
+    view.buf->undo_index = static_cast<int>(view.buf->undo_stack.size()) - 1;
 }
 
 void ViEditor::PushCharUndo(EditorView& view, int s_row, int s_col,
@@ -1029,53 +1034,53 @@ void ViEditor::PushCharUndo(EditorView& view, int s_row, int s_col,
     entry.old_text = old_t;
     entry.new_text = new_t;
 
-    if (view.undo_index + 1 < static_cast<int>(view.undo_stack.size()))
-        view.undo_stack.resize(view.undo_index + 1);
+    if (view.buf->undo_index + 1 < static_cast<int>(view.buf->undo_stack.size()))
+        view.buf->undo_stack.resize(view.buf->undo_index + 1);
 
-    view.undo_stack.push_back(std::move(entry));
-    view.undo_index = static_cast<int>(view.undo_stack.size()) - 1;
+    view.buf->undo_stack.push_back(std::move(entry));
+    view.buf->undo_index = static_cast<int>(view.buf->undo_stack.size()) - 1;
 }
 
 void ViEditor::PushInsertWordUndo(EditorView& view) {
-    if (!view.insert_word_tracking || view.insert_accumulated.empty())
+    if (!view.buf->insert_word_tracking || view.buf->insert_accumulated.empty())
         return;
-    int s_row = view.insert_word_row;
-    int s_col = view.insert_word_col;
+    int s_row = view.buf->insert_word_row;
+    int s_col = view.buf->insert_word_col;
     int e_row = view.cursor_row;
     int e_col = view.cursor_col;
     PushCharUndo(view, s_row, s_col, e_row, e_col, "",
-                 view.insert_accumulated);
-    view.insert_word_row = e_row;
-    view.insert_word_col = e_col;
-    view.insert_accumulated.clear();
+                 view.buf->insert_accumulated);
+    view.buf->insert_word_row = e_row;
+    view.buf->insert_word_col = e_col;
+    view.buf->insert_accumulated.clear();
 }
 
 void ViEditor::BeginInsertUndo(EditorView& view) {
     // Start word-boundary tracking for fine-grained undo
-    view.insert_word_tracking = false;
-    view.insert_word_row = view.cursor_row;
-    view.insert_word_col = view.cursor_col;
-    view.insert_accumulated.clear();
+    view.buf->insert_word_tracking = false;
+    view.buf->insert_word_row = view.cursor_row;
+    view.buf->insert_word_col = view.cursor_col;
+    view.buf->insert_accumulated.clear();
 }
 
 void ViEditor::FinalizeInsertUndo(EditorView& view) {
     // Push any remaining accumulated word text
     PushInsertWordUndo(view);
-    view.insert_word_tracking = false;
+    view.buf->insert_word_tracking = false;
 }
 
 void ViEditor::Undo(EditorView& view) {
-    if (view.undo_index < 0 ||
-        view.undo_index >= static_cast<int>(view.undo_stack.size())) {
+    if (view.buf->undo_index < 0 ||
+        view.buf->undo_index >= static_cast<int>(view.buf->undo_stack.size())) {
         SetStatus("Already at oldest change");
         return;
     }
 
-    UndoEntry& entry = view.undo_stack[view.undo_index];
+    UndoEntry& entry = view.buf->undo_stack[view.buf->undo_index];
 
     if (entry.is_char_level) {
         // Character-level undo: remove new_text, restore old_text
-        std::string& line = view.lines[entry.start_row];
+        std::string& line = view.buf->lines[entry.start_row];
         if (entry.start_col + static_cast<int>(entry.new_text.size()) <=
             static_cast<int>(line.size())) {
             line.erase(entry.start_col,
@@ -1088,12 +1093,12 @@ void ViEditor::Undo(EditorView& view) {
         std::swap(entry.old_text, entry.new_text);
 
         view.cursor_row = std::clamp(
-            entry.cursor_row, 0, static_cast<int>(view.lines.size()) - 1);
+            entry.cursor_row, 0, static_cast<int>(view.buf->lines.size()) - 1);
         view.cursor_col = std::clamp(
             entry.cursor_col, 0,
-            static_cast<int>(view.lines[view.cursor_row].size()));
-        view.modified = true;
-        --view.undo_index;
+            static_cast<int>(view.buf->lines[view.cursor_row].size()));
+        view.buf->modified = true;
+        --view.buf->undo_index;
         UpdateScroll(view);
         SetStatus("Undo");
         return;
@@ -1121,9 +1126,9 @@ void ViEditor::Undo(EditorView& view) {
     // future)
     std::vector<std::string> new_lines;
     int end_line = std::min(entry.first_line + current_count,
-                            static_cast<int>(view.lines.size()));
+                            static_cast<int>(view.buf->lines.size()));
     for (int i = entry.first_line; i < end_line; ++i)
-        new_lines.push_back(view.lines[i]);
+        new_lines.push_back(view.buf->lines[i]);
 
     // Restore old lines
     int remove_count = current_count;
@@ -1131,18 +1136,18 @@ void ViEditor::Undo(EditorView& view) {
 
     // Remove current lines
     if (remove_count > 0 &&
-        entry.first_line < static_cast<int>(view.lines.size())) {
+        entry.first_line < static_cast<int>(view.buf->lines.size())) {
         int actual_remove =
-            std::min(remove_count, static_cast<int>(view.lines.size()) -
+            std::min(remove_count, static_cast<int>(view.buf->lines.size()) -
                                        entry.first_line);
-        view.lines.erase(view.lines.begin() + entry.first_line,
-                         view.lines.begin() + entry.first_line +
+        view.buf->lines.erase(view.buf->lines.begin() + entry.first_line,
+                         view.buf->lines.begin() + entry.first_line +
                              actual_remove);
     }
 
     // Insert old lines
     for (int i = 0; i < old_size; ++i)
-        view.lines.insert(view.lines.begin() + entry.first_line + i,
+        view.buf->lines.insert(view.buf->lines.begin() + entry.first_line + i,
                           entry.old_lines[i]);
 
     // Update entry so re-undo (redo) would work
@@ -1151,31 +1156,31 @@ void ViEditor::Undo(EditorView& view) {
 
     // Restore cursor
     view.cursor_row = std::clamp(
-        entry.cursor_row, 0, static_cast<int>(view.lines.size()) - 1);
+        entry.cursor_row, 0, static_cast<int>(view.buf->lines.size()) - 1);
     view.cursor_col = std::clamp(
         entry.cursor_col, 0,
-        static_cast<int>(view.lines[view.cursor_row].size()));
-    view.modified = true;
+        static_cast<int>(view.buf->lines[view.cursor_row].size()));
+    view.buf->modified = true;
 
-    --view.undo_index;
+    --view.buf->undo_index;
     UpdateScroll(view);
     SetStatus("Undo");
 }
 
 void ViEditor::Redo(EditorView& view) {
-    int redo_idx = view.undo_index + 1;
+    int redo_idx = view.buf->undo_index + 1;
     if (redo_idx < 0 ||
-        redo_idx >= static_cast<int>(view.undo_stack.size())) {
+        redo_idx >= static_cast<int>(view.buf->undo_stack.size())) {
         SetStatus("Already at newest change");
         return;
     }
 
-    UndoEntry& entry = view.undo_stack[redo_idx];
+    UndoEntry& entry = view.buf->undo_stack[redo_idx];
 
     if (entry.is_char_level) {
         // Character-level redo: same logic as undo (remove new_text,
         // insert old_text) since undo already swapped them
-        std::string& line = view.lines[entry.start_row];
+        std::string& line = view.buf->lines[entry.start_row];
         if (entry.start_col + static_cast<int>(entry.new_text.size()) <=
             static_cast<int>(line.size())) {
             line.erase(entry.start_col,
@@ -1190,12 +1195,12 @@ void ViEditor::Redo(EditorView& view) {
         // Cursor goes to the position it was at after the original change
         view.cursor_row =
             std::clamp(entry.end_row, 0,
-                       static_cast<int>(view.lines.size()) - 1);
+                       static_cast<int>(view.buf->lines.size()) - 1);
         view.cursor_col =
             std::clamp(entry.end_col, 0,
-                       static_cast<int>(view.lines[view.cursor_row].size()));
-        view.modified = true;
-        view.undo_index = redo_idx;
+                       static_cast<int>(view.buf->lines[view.cursor_row].size()));
+        view.buf->modified = true;
+        view.buf->undo_index = redo_idx;
         UpdateScroll(view);
         SetStatus("Redo");
         return;
@@ -1207,25 +1212,25 @@ void ViEditor::Redo(EditorView& view) {
         entry.new_line_count; // this was set during undo
     std::vector<std::string> current_lines;
     int end_line = std::min(entry.first_line + current_count,
-                            static_cast<int>(view.lines.size()));
+                            static_cast<int>(view.buf->lines.size()));
     for (int i = entry.first_line; i < end_line; ++i)
-        current_lines.push_back(view.lines[i]);
+        current_lines.push_back(view.buf->lines[i]);
 
     // Remove current lines
     if (current_count > 0 &&
-        entry.first_line < static_cast<int>(view.lines.size())) {
+        entry.first_line < static_cast<int>(view.buf->lines.size())) {
         int actual_remove = std::min(
             current_count,
-            static_cast<int>(view.lines.size()) - entry.first_line);
-        view.lines.erase(view.lines.begin() + entry.first_line,
-                         view.lines.begin() + entry.first_line +
+            static_cast<int>(view.buf->lines.size()) - entry.first_line);
+        view.buf->lines.erase(view.buf->lines.begin() + entry.first_line,
+                         view.buf->lines.begin() + entry.first_line +
                              actual_remove);
     }
 
     // Insert old lines (which are the "forward" state)
     int old_size = static_cast<int>(entry.old_lines.size());
     for (int i = 0; i < old_size; ++i)
-        view.lines.insert(view.lines.begin() + entry.first_line + i,
+        view.buf->lines.insert(view.buf->lines.begin() + entry.first_line + i,
                           entry.old_lines[i]);
 
     // Update entry for potential re-undo
@@ -1234,13 +1239,13 @@ void ViEditor::Redo(EditorView& view) {
 
     // Restore cursor
     view.cursor_row = std::clamp(
-        entry.cursor_row, 0, static_cast<int>(view.lines.size()) - 1);
+        entry.cursor_row, 0, static_cast<int>(view.buf->lines.size()) - 1);
     view.cursor_col = std::clamp(
         entry.cursor_col, 0,
-        static_cast<int>(view.lines[view.cursor_row].size()));
-    view.modified = true;
+        static_cast<int>(view.buf->lines[view.cursor_row].size()));
+    view.buf->modified = true;
 
-    view.undo_index = redo_idx; // advance past this entry
+    view.buf->undo_index = redo_idx; // advance past this entry
     UpdateScroll(view);
     SetStatus("Redo");
 }
@@ -1261,43 +1266,43 @@ void ViEditor::ApplyBlockChange(EditorView& view, OperatorType op) {
 
     if (op == OperatorType::DELETE_OP) {
         // Yank the block text
-        view.yank_register.clear();
+        view.buf->yank_register.clear();
         for (int row = sr;
-             row <= er && row < static_cast<int>(view.lines.size());
+             row <= er && row < static_cast<int>(view.buf->lines.size());
              ++row) {
-            std::string& line = view.lines[row];
+            std::string& line = view.buf->lines[row];
             int cs = std::min(sc, static_cast<int>(line.size()));
             int ce = std::min(ec, static_cast<int>(line.size()));
             if (cs < ce)
-                view.yank_register.push_back(line.substr(cs, ce - cs));
+                view.buf->yank_register.push_back(line.substr(cs, ce - cs));
             else
-                view.yank_register.push_back("");
+                view.buf->yank_register.push_back("");
             if (cs < static_cast<int>(line.size()))
                 line.erase(cs,
                            std::min(ce, static_cast<int>(line.size())) -
                                cs);
         }
-        view.yank_linewise = false;
-        view.yank_blockwise = true;
+        view.buf->yank_linewise = false;
+        view.buf->yank_blockwise = true;
         view.cursor_row = sr;
         view.cursor_col =
-            std::min(sc, static_cast<int>(view.lines[sr].size()));
-        view.modified = true;
+            std::min(sc, static_cast<int>(view.buf->lines[sr].size()));
+        view.buf->modified = true;
         ExitVisual();
     } else if (op == OperatorType::CHANGE) {
         // Delete the block and prepare for multi-line insert
-        view.yank_register.clear();
+        view.buf->yank_register.clear();
         for (int row = sr;
-             row <= er && row < static_cast<int>(view.lines.size());
+             row <= er && row < static_cast<int>(view.buf->lines.size());
              ++row) {
-            std::string& line = view.lines[row];
+            std::string& line = view.buf->lines[row];
             int cs = std::min(sc, static_cast<int>(line.size()));
             int ce = std::min(ec, static_cast<int>(line.size()));
             if (cs < ce)
                 line.erase(cs, ce - cs);
         }
-        view.yank_linewise = false;
-        view.yank_blockwise = true;
+        view.buf->yank_linewise = false;
+        view.buf->yank_blockwise = true;
         // Remember the block for replication
         block_change_pending_ = true;
         block_change_start_row_ = sr;
@@ -1307,7 +1312,7 @@ void ViEditor::ApplyBlockChange(EditorView& view, OperatorType op) {
         // Place cursor at start of deletion on first line
         view.cursor_row = sr;
         view.cursor_col = sc;
-        view.modified = true;
+        view.buf->modified = true;
         ExitVisual();
         mode_ = Mode::INSERT;
         recording_insert_ = true;
@@ -1326,14 +1331,14 @@ void ViEditor::FinalizeBlockChange(EditorView& view) {
     int sc = block_change_start_col_;
 
     // Get the text that was inserted on the first line
-    std::string& first_line = view.lines[sr];
+    std::string& first_line = view.buf->lines[sr];
     std::string inserted = first_line.substr(sc);
 
     // Replicate to all other lines in the block
     for (int row = sr + 1;
-         row <= er && row < static_cast<int>(view.lines.size());
+         row <= er && row < static_cast<int>(view.buf->lines.size());
          ++row) {
-        std::string& line = view.lines[row];
+        std::string& line = view.buf->lines[row];
         if (sc <= static_cast<int>(line.size()))
             line.insert(sc, inserted);
         else
@@ -1354,7 +1359,7 @@ CursorPos ViEditor::MotionLeft(const EditorView& v, int count) const {
             --col;
         else if (row > 0) {
             --row;
-            col = static_cast<int>(v.lines[row].size());
+            col = static_cast<int>(v.buf->lines[row].size());
         }
     }
     return {row, col};
@@ -1363,12 +1368,12 @@ CursorPos ViEditor::MotionLeft(const EditorView& v, int count) const {
 CursorPos ViEditor::MotionRight(const EditorView& v, int count) const {
     int col = v.cursor_col;
     int row = v.cursor_row;
-    int max_row = static_cast<int>(v.lines.size()) - 1;
+    int max_row = static_cast<int>(v.buf->lines.size()) - 1;
     for (int i = 0;
          i < count &&
-         (row < max_row || col < static_cast<int>(v.lines[row].size()));
+         (row < max_row || col < static_cast<int>(v.buf->lines[row].size()));
          ++i) {
-        if (col < static_cast<int>(v.lines[row].size()))
+        if (col < static_cast<int>(v.buf->lines[row].size()))
             ++col;
         else if (row < max_row) {
             ++row;
@@ -1380,16 +1385,16 @@ CursorPos ViEditor::MotionRight(const EditorView& v, int count) const {
 
 CursorPos ViEditor::MotionDown(const EditorView& v, int count) const {
     int row = std::min(v.cursor_row + count,
-                       static_cast<int>(v.lines.size()) - 1);
+                       static_cast<int>(v.buf->lines.size()) - 1);
     int col =
-        std::min(v.cursor_col, static_cast<int>(v.lines[row].size()));
+        std::min(v.cursor_col, static_cast<int>(v.buf->lines[row].size()));
     return {row, col};
 }
 
 CursorPos ViEditor::MotionUp(const EditorView& v, int count) const {
     int row = std::max(v.cursor_row - count, 0);
     int col =
-        std::min(v.cursor_col, static_cast<int>(v.lines[row].size()));
+        std::min(v.cursor_col, static_cast<int>(v.buf->lines[row].size()));
     return {row, col};
 }
 
@@ -1399,11 +1404,11 @@ CursorPos ViEditor::MotionLineStart(const EditorView& v) const {
 
 CursorPos ViEditor::MotionLineEnd(const EditorView& v) const {
     return {v.cursor_row,
-            static_cast<int>(v.lines[v.cursor_row].size())};
+            static_cast<int>(v.buf->lines[v.cursor_row].size())};
 }
 
 CursorPos ViEditor::MotionFirstNonBlank(const EditorView& v) const {
-    const auto& line = v.lines[v.cursor_row];
+    const auto& line = v.buf->lines[v.cursor_row];
     int col = 0;
     while (col < static_cast<int>(line.size()) &&
            IsSpaceOrTab(line[col]))
@@ -1416,44 +1421,44 @@ CursorPos ViEditor::MotionFileStart(const EditorView& /*v*/) const {
 }
 
 CursorPos ViEditor::MotionFileEnd(const EditorView& v) const {
-    return {static_cast<int>(v.lines.size()) - 1, 0};
+    return {static_cast<int>(v.buf->lines.size()) - 1, 0};
 }
 
 CursorPos ViEditor::MotionWordForward(const EditorView& v,
                                       int count) const {
     int row = v.cursor_row;
     int col = v.cursor_col;
-    int max_row = static_cast<int>(v.lines.size()) - 1;
+    int max_row = static_cast<int>(v.buf->lines.size()) - 1;
 
     for (int c = 0; c < count; ++c) {
         // Skip current word characters
         while (row <= max_row &&
-               col < static_cast<int>(v.lines[row].size()) &&
-               IsWordChar(v.lines[row][col]))
+               col < static_cast<int>(v.buf->lines[row].size()) &&
+               IsWordChar(v.buf->lines[row][col]))
             ++col;
         // Skip non-word non-whitespace
         while (row <= max_row &&
-               col < static_cast<int>(v.lines[row].size()) &&
-               !IsWordChar(v.lines[row][col]) &&
-               !IsSpaceOrTab(v.lines[row][col]))
+               col < static_cast<int>(v.buf->lines[row].size()) &&
+               !IsWordChar(v.buf->lines[row][col]) &&
+               !IsSpaceOrTab(v.buf->lines[row][col]))
             ++col;
         // Skip whitespace (but don't cross lines)
-        while (col < static_cast<int>(v.lines[row].size()) &&
-               IsSpaceOrTab(v.lines[row][col]))
+        while (col < static_cast<int>(v.buf->lines[row].size()) &&
+               IsSpaceOrTab(v.buf->lines[row][col]))
             ++col;
         // If at end of line, go to next line
-        if (col >= static_cast<int>(v.lines[row].size()) &&
+        if (col >= static_cast<int>(v.buf->lines[row].size()) &&
             row < max_row) {
             ++row;
             col = 0;
-            while (col < static_cast<int>(v.lines[row].size()) &&
-                   IsSpaceOrTab(v.lines[row][col]))
+            while (col < static_cast<int>(v.buf->lines[row].size()) &&
+                   IsSpaceOrTab(v.buf->lines[row][col]))
                 ++col;
         }
     }
     if (row > max_row) {
         row = max_row;
-        col = static_cast<int>(v.lines[row].size());
+        col = static_cast<int>(v.buf->lines[row].size());
     }
     return {row, col};
 }
@@ -1467,26 +1472,26 @@ CursorPos ViEditor::MotionWordBackward(const EditorView& v,
         // Step 1: if at column 0, move to end of previous line
         if (col == 0 && row > 0) {
             --row;
-            col = static_cast<int>(v.lines[row].size());
+            col = static_cast<int>(v.buf->lines[row].size());
         }
         // Step 2: skip whitespace and non-word chars backward to find a
         // word First skip past any whitespace
-        while (col > 0 && IsSpaceOrTab(v.lines[row][col - 1]))
+        while (col > 0 && IsSpaceOrTab(v.buf->lines[row][col - 1]))
             --col;
         // If we landed at column 0 after skipping whitespace, go up a
         // line
         if (col == 0 && row > 0) {
             --row;
-            col = static_cast<int>(v.lines[row].size());
-            while (col > 0 && IsSpaceOrTab(v.lines[row][col - 1]))
+            col = static_cast<int>(v.buf->lines[row].size());
+            while (col > 0 && IsSpaceOrTab(v.buf->lines[row][col - 1]))
                 --col;
         }
         // Step 3: if on a non-word char, step back one to get onto a
         // word boundary
-        if (col > 0 && !IsWordChar(v.lines[row][col - 1]))
+        if (col > 0 && !IsWordChar(v.buf->lines[row][col - 1]))
             --col;
         // Step 4: move to start of the word
-        while (col > 0 && IsWordChar(v.lines[row][col - 1]))
+        while (col > 0 && IsWordChar(v.buf->lines[row][col - 1]))
             --col;
     }
     if (row < 0)
@@ -1498,19 +1503,19 @@ CursorPos ViEditor::MotionWordEndForward(const EditorView& v,
                                          int count) const {
     int row = v.cursor_row;
     int col = v.cursor_col;
-    int max_row = static_cast<int>(v.lines.size()) - 1;
+    int max_row = static_cast<int>(v.buf->lines.size()) - 1;
 
     for (int c = 0; c < count; ++c) {
-        int line_len = static_cast<int>(v.lines[row].size());
+        int line_len = static_cast<int>(v.buf->lines[row].size());
         // Move forward one char so we don't stay on the same word end
         if (col < line_len)
             ++col;
         // Skip whitespace
         while (row <= max_row) {
-            while (col < static_cast<int>(v.lines[row].size()) &&
-                   IsSpaceOrTab(v.lines[row][col]))
+            while (col < static_cast<int>(v.buf->lines[row].size()) &&
+                   IsSpaceOrTab(v.buf->lines[row][col]))
                 ++col;
-            if (col >= static_cast<int>(v.lines[row].size()) &&
+            if (col >= static_cast<int>(v.buf->lines[row].size()) &&
                 row < max_row) {
                 ++row;
                 col = 0;
@@ -1520,12 +1525,12 @@ CursorPos ViEditor::MotionWordEndForward(const EditorView& v,
         }
         // Move to end of word-or-punctuation sequence
         if (row <= max_row &&
-            col < static_cast<int>(v.lines[row].size())) {
-            char cur = v.lines[row][col];
+            col < static_cast<int>(v.buf->lines[row].size())) {
+            char cur = v.buf->lines[row][col];
             bool is_word = IsWordChar(cur);
             while (row <= max_row &&
-                   col < static_cast<int>(v.lines[row].size())) {
-                char ch = v.lines[row][col];
+                   col < static_cast<int>(v.buf->lines[row].size())) {
+                char ch = v.buf->lines[row][col];
                 if (IsSpaceOrTab(ch))
                     break;
                 if (is_word && !IsWordChar(ch))
@@ -1546,28 +1551,28 @@ CursorPos ViEditor::MotionBigWordForward(const EditorView& v,
                                          int count) const {
     int row = v.cursor_row;
     int col = v.cursor_col;
-    int max_row = static_cast<int>(v.lines.size()) - 1;
+    int max_row = static_cast<int>(v.buf->lines.size()) - 1;
 
     for (int c = 0; c < count; ++c) {
         while (row <= max_row &&
-               col < static_cast<int>(v.lines[row].size()) &&
-               IsBigWordChar(v.lines[row][col]))
+               col < static_cast<int>(v.buf->lines[row].size()) &&
+               IsBigWordChar(v.buf->lines[row][col]))
             ++col;
-        while (col < static_cast<int>(v.lines[row].size()) &&
-               IsSpaceOrTab(v.lines[row][col]))
+        while (col < static_cast<int>(v.buf->lines[row].size()) &&
+               IsSpaceOrTab(v.buf->lines[row][col]))
             ++col;
-        if (col >= static_cast<int>(v.lines[row].size()) &&
+        if (col >= static_cast<int>(v.buf->lines[row].size()) &&
             row < max_row) {
             ++row;
             col = 0;
-            while (col < static_cast<int>(v.lines[row].size()) &&
-                   IsSpaceOrTab(v.lines[row][col]))
+            while (col < static_cast<int>(v.buf->lines[row].size()) &&
+                   IsSpaceOrTab(v.buf->lines[row][col]))
                 ++col;
         }
     }
     if (row > max_row) {
         row = max_row;
-        col = static_cast<int>(v.lines[row].size());
+        col = static_cast<int>(v.buf->lines[row].size());
     }
     return {row, col};
 }
@@ -1578,14 +1583,14 @@ CursorPos ViEditor::MotionBigWordBackward(const EditorView& v,
     int col = v.cursor_col;
     for (int c = 0; c < count; ++c) {
         while (row >= 0 && col > 0 &&
-               IsSpaceOrTab(v.lines[row][col - 1]))
+               IsSpaceOrTab(v.buf->lines[row][col - 1]))
             --col;
         if (col == 0 && row > 0) {
             --row;
-            col = static_cast<int>(v.lines[row].size());
+            col = static_cast<int>(v.buf->lines[row].size());
         }
         while (row >= 0 && col > 0 &&
-               IsBigWordChar(v.lines[row][col - 1]))
+               IsBigWordChar(v.buf->lines[row][col - 1]))
             --col;
     }
     if (row < 0)
@@ -1597,18 +1602,18 @@ CursorPos ViEditor::MotionBigWordEndForward(const EditorView& v,
                                             int count) const {
     int row = v.cursor_row;
     int col = v.cursor_col;
-    int max_row = static_cast<int>(v.lines.size()) - 1;
+    int max_row = static_cast<int>(v.buf->lines.size()) - 1;
     for (int c = 0; c < count; ++c) {
-        int line_len = static_cast<int>(v.lines[row].size());
+        int line_len = static_cast<int>(v.buf->lines[row].size());
         // Move forward one char so we don't stay on the same word end
         if (col < line_len)
             ++col;
         // Skip whitespace
         while (row <= max_row) {
-            while (col < static_cast<int>(v.lines[row].size()) &&
-                   IsSpaceOrTab(v.lines[row][col]))
+            while (col < static_cast<int>(v.buf->lines[row].size()) &&
+                   IsSpaceOrTab(v.buf->lines[row][col]))
                 ++col;
-            if (col >= static_cast<int>(v.lines[row].size()) &&
+            if (col >= static_cast<int>(v.buf->lines[row].size()) &&
                 row < max_row) {
                 ++row;
                 col = 0;
@@ -1618,8 +1623,8 @@ CursorPos ViEditor::MotionBigWordEndForward(const EditorView& v,
         }
         // Move to end of WORD
         while (row <= max_row &&
-               col < static_cast<int>(v.lines[row].size()) &&
-               IsBigWordChar(v.lines[row][col]))
+               col < static_cast<int>(v.buf->lines[row].size()) &&
+               IsBigWordChar(v.buf->lines[row][col]))
             ++col;
         if (col > 0)
             --col;
@@ -1634,12 +1639,12 @@ CursorPos ViEditor::MotionWordEndBackward(const EditorView& v,
 
     for (int c = 0; c < count; ++c) {
         // Determine the type of character under the cursor
-        if (row < 0 || row >= static_cast<int>(v.lines.size()))
+        if (row < 0 || row >= static_cast<int>(v.buf->lines.size()))
             break;
-        int line_len = static_cast<int>(v.lines[row].size());
+        int line_len = static_cast<int>(v.buf->lines[row].size());
         if (col >= line_len)
             col = line_len > 0 ? line_len - 1 : 0;
-        char cur = (col < line_len) ? v.lines[row][col] : ' ';
+        char cur = (col < line_len) ? v.buf->lines[row][col] : ' ';
         bool is_word = IsWordChar(cur);
         bool is_space = IsSpaceOrTab(cur);
 
@@ -1649,7 +1654,7 @@ CursorPos ViEditor::MotionWordEndBackward(const EditorView& v,
                 if (col <= 0) {
                     if (row > 0) {
                         --row;
-                        col = static_cast<int>(v.lines[row].size());
+                        col = static_cast<int>(v.buf->lines[row].size());
                     } else {
                         break;
                     }
@@ -1658,7 +1663,7 @@ CursorPos ViEditor::MotionWordEndBackward(const EditorView& v,
                     --col;
                 else
                     break;
-                char ch = v.lines[row][col];
+                char ch = v.buf->lines[row][col];
                 if (IsSpaceOrTab(ch))
                     break;
                 if (is_word && !IsWordChar(ch))
@@ -1670,15 +1675,15 @@ CursorPos ViEditor::MotionWordEndBackward(const EditorView& v,
 
         // Step 2: skip backward past whitespace
         while (row >= 0) {
-            if (col >= static_cast<int>(v.lines[row].size()))
-                col = static_cast<int>(v.lines[row].size()) - 1;
+            if (col >= static_cast<int>(v.buf->lines[row].size()))
+                col = static_cast<int>(v.buf->lines[row].size()) - 1;
             while (col >= 0 &&
-                   col < static_cast<int>(v.lines[row].size()) &&
-                   IsSpaceOrTab(v.lines[row][col]))
+                   col < static_cast<int>(v.buf->lines[row].size()) &&
+                   IsSpaceOrTab(v.buf->lines[row][col]))
                 --col;
             if (col < 0 && row > 0) {
                 --row;
-                col = static_cast<int>(v.lines[row].size()) - 1;
+                col = static_cast<int>(v.buf->lines[row].size()) - 1;
             } else {
                 break;
             }
@@ -1686,14 +1691,14 @@ CursorPos ViEditor::MotionWordEndBackward(const EditorView& v,
 
         // Step 3: find the end of the previous sequence
         if (row >= 0 && col >= 0 &&
-            col < static_cast<int>(v.lines[row].size()) &&
-            !IsSpaceOrTab(v.lines[row][col])) {
-            cur = v.lines[row][col];
+            col < static_cast<int>(v.buf->lines[row].size()) &&
+            !IsSpaceOrTab(v.buf->lines[row][col])) {
+            cur = v.buf->lines[row][col];
             is_word = IsWordChar(cur);
             // Find the start of this sequence
             int seq_start = col;
             while (seq_start > 0) {
-                char prev = v.lines[row][seq_start - 1];
+                char prev = v.buf->lines[row][seq_start - 1];
                 if (IsSpaceOrTab(prev))
                     break;
                 if (is_word && !IsWordChar(prev))
@@ -1704,9 +1709,9 @@ CursorPos ViEditor::MotionWordEndBackward(const EditorView& v,
             }
             // Move from start to end
             col = seq_start;
-            line_len = static_cast<int>(v.lines[row].size());
+            line_len = static_cast<int>(v.buf->lines[row].size());
             while (col < line_len) {
-                char ch = v.lines[row][col];
+                char ch = v.buf->lines[row][col];
                 if (IsSpaceOrTab(ch))
                     break;
                 if (is_word && !IsWordChar(ch))
@@ -1732,12 +1737,12 @@ CursorPos ViEditor::MotionBigWordEndBackward(const EditorView& v,
     int col = v.cursor_col;
 
     for (int c = 0; c < count; ++c) {
-        if (row < 0 || row >= static_cast<int>(v.lines.size()))
+        if (row < 0 || row >= static_cast<int>(v.buf->lines.size()))
             break;
-        int line_len = static_cast<int>(v.lines[row].size());
+        int line_len = static_cast<int>(v.buf->lines[row].size());
         if (col >= line_len)
             col = line_len > 0 ? line_len - 1 : 0;
-        char cur = (col < line_len) ? v.lines[row][col] : ' ';
+        char cur = (col < line_len) ? v.buf->lines[row][col] : ' ';
         bool is_space = IsSpaceOrTab(cur);
 
         // Step 1: skip backward past the current BIG word
@@ -1746,7 +1751,7 @@ CursorPos ViEditor::MotionBigWordEndBackward(const EditorView& v,
                 if (col <= 0) {
                     if (row > 0) {
                         --row;
-                        col = static_cast<int>(v.lines[row].size());
+                        col = static_cast<int>(v.buf->lines[row].size());
                     } else {
                         break;
                     }
@@ -1755,22 +1760,22 @@ CursorPos ViEditor::MotionBigWordEndBackward(const EditorView& v,
                     --col;
                 else
                     break;
-                if (IsSpaceOrTab(v.lines[row][col]))
+                if (IsSpaceOrTab(v.buf->lines[row][col]))
                     break;
             }
         }
 
         // Step 2: skip backward past whitespace
         while (row >= 0) {
-            if (col >= static_cast<int>(v.lines[row].size()))
-                col = static_cast<int>(v.lines[row].size()) - 1;
+            if (col >= static_cast<int>(v.buf->lines[row].size()))
+                col = static_cast<int>(v.buf->lines[row].size()) - 1;
             while (col >= 0 &&
-                   col < static_cast<int>(v.lines[row].size()) &&
-                   IsSpaceOrTab(v.lines[row][col]))
+                   col < static_cast<int>(v.buf->lines[row].size()) &&
+                   IsSpaceOrTab(v.buf->lines[row][col]))
                 --col;
             if (col < 0 && row > 0) {
                 --row;
-                col = static_cast<int>(v.lines[row].size()) - 1;
+                col = static_cast<int>(v.buf->lines[row].size()) - 1;
             } else {
                 break;
             }
@@ -1778,15 +1783,15 @@ CursorPos ViEditor::MotionBigWordEndBackward(const EditorView& v,
 
         // Step 3: find the end of the previous BIG word
         if (row >= 0 && col >= 0 &&
-            col < static_cast<int>(v.lines[row].size()) &&
-            !IsSpaceOrTab(v.lines[row][col])) {
+            col < static_cast<int>(v.buf->lines[row].size()) &&
+            !IsSpaceOrTab(v.buf->lines[row][col])) {
             int seq_start = col;
             while (seq_start > 0 &&
-                   !IsSpaceOrTab(v.lines[row][seq_start - 1]))
+                   !IsSpaceOrTab(v.buf->lines[row][seq_start - 1]))
                 --seq_start;
             col = seq_start;
-            line_len = static_cast<int>(v.lines[row].size());
-            while (col < line_len && !IsSpaceOrTab(v.lines[row][col]))
+            line_len = static_cast<int>(v.buf->lines[row].size());
+            while (col < line_len && !IsSpaceOrTab(v.buf->lines[row][col]))
                 ++col;
             if (col > 0)
                 --col;
@@ -1803,13 +1808,13 @@ CursorPos ViEditor::MotionFindForward(const EditorView& v, char target,
                                       int count, bool till) const {
     int row = v.cursor_row;
     int col = v.cursor_col;
-    int max_row = static_cast<int>(v.lines.size()) - 1;
+    int max_row = static_cast<int>(v.buf->lines.size()) - 1;
 
     for (int c = 0; c < count; ++c) {
         ++col; // start after current position
         while (row <= max_row) {
-            while (col < static_cast<int>(v.lines[row].size())) {
-                if (v.lines[row][col] == target) {
+            while (col < static_cast<int>(v.buf->lines[row].size())) {
+                if (v.buf->lines[row][col] == target) {
                     if (till) {
                         // For 't', stop one char before
                         if (col > 0)
@@ -1838,10 +1843,10 @@ CursorPos ViEditor::MotionFindBackward(const EditorView& v, char target,
         --col;
         while (row >= 0) {
             while (col >= 0) {
-                if (v.lines[row][col] == target) {
+                if (v.buf->lines[row][col] == target) {
                     if (till) {
                         if (col + 1 <
-                            static_cast<int>(v.lines[row].size()))
+                            static_cast<int>(v.buf->lines[row].size()))
                             return {row, col + 1};
                         return {row, col};
                     }
@@ -1851,7 +1856,7 @@ CursorPos ViEditor::MotionFindBackward(const EditorView& v, char target,
             }
             if (row > 0) {
                 --row;
-                col = static_cast<int>(v.lines[row].size()) - 1;
+                col = static_cast<int>(v.buf->lines[row].size()) - 1;
             } else
                 break;
         }
@@ -1862,13 +1867,13 @@ CursorPos ViEditor::MotionFindBackward(const EditorView& v, char target,
 CursorPos ViEditor::MotionParagraphForward(const EditorView& v,
                                            int count) const {
     int row = v.cursor_row;
-    int max_row = static_cast<int>(v.lines.size()) - 1;
+    int max_row = static_cast<int>(v.buf->lines.size()) - 1;
     for (int c = 0; c < count && row < max_row; ++c) {
         // Skip non-empty lines
-        while (row < max_row && !v.lines[row].empty())
+        while (row < max_row && !v.buf->lines[row].empty())
             ++row;
         // Skip empty lines
-        while (row < max_row && v.lines[row].empty())
+        while (row < max_row && v.buf->lines[row].empty())
             ++row;
     }
     return {row, 0};
@@ -1878,16 +1883,16 @@ CursorPos ViEditor::MotionParagraphBackward(const EditorView& v,
                                             int count) const {
     int row = v.cursor_row;
     for (int c = 0; c < count && row > 0; ++c) {
-        while (row > 0 && !v.lines[row].empty())
+        while (row > 0 && !v.buf->lines[row].empty())
             --row;
-        while (row > 0 && v.lines[row].empty())
+        while (row > 0 && v.buf->lines[row].empty())
             --row;
     }
     return {row, 0};
 }
 
 CursorPos ViEditor::MotionPercentMatch(const EditorView& v) const {
-    const auto& line = v.lines[v.cursor_row];
+    const auto& line = v.buf->lines[v.cursor_row];
     char target = 0;
     char under = (v.cursor_col < static_cast<int>(line.size()))
                      ? line[v.cursor_col]
@@ -1923,18 +1928,18 @@ CursorPos ViEditor::MotionPercentMatch(const EditorView& v) const {
                                               : v.cursor_col + 1;
 
     if (forward) {
-        if (col < static_cast<int>(v.lines[row].size()) &&
-            v.lines[row][col] == self) {
+        if (col < static_cast<int>(v.buf->lines[row].size()) &&
+            v.buf->lines[row][col] == self) {
             ++col; // skip the character we are already on
         }
     }
 
     while (depth > 0) {
         if (forward) {
-            while (col < static_cast<int>(v.lines[row].size())) {
-                if (v.lines[row][col] == self)
+            while (col < static_cast<int>(v.buf->lines[row].size())) {
+                if (v.buf->lines[row][col] == self)
                     ++depth;
-                else if (v.lines[row][col] == match)
+                else if (v.buf->lines[row][col] == match)
                     --depth;
                 if (depth == 0)
                     return {row, col};
@@ -1944,9 +1949,9 @@ CursorPos ViEditor::MotionPercentMatch(const EditorView& v) const {
             col = 0;
         } else {
             while (col >= 0) {
-                if (v.lines[row][col] == self)
+                if (v.buf->lines[row][col] == self)
                     ++depth;
-                else if (v.lines[row][col] == match)
+                else if (v.buf->lines[row][col] == match)
                     --depth;
                 if (depth == 0)
                     return {row, col};
@@ -1954,7 +1959,7 @@ CursorPos ViEditor::MotionPercentMatch(const EditorView& v) const {
             }
             --row;
             if (row >= 0)
-                col = static_cast<int>(v.lines[row].size()) - 1;
+                col = static_cast<int>(v.buf->lines[row].size()) - 1;
             else
                 break;
         }
@@ -1967,7 +1972,7 @@ CursorPos ViEditor::MotionPercentMatch(const EditorView& v) const {
 // ============================================================================
 
 Range ViEditor::TextObjectInnerWord(const EditorView& v) const {
-    const auto& line = v.lines[v.cursor_row];
+    const auto& line = v.buf->lines[v.cursor_row];
     int start = v.cursor_col;
     int end = v.cursor_col;
 
@@ -1984,7 +1989,7 @@ Range ViEditor::TextObjectInnerWord(const EditorView& v) const {
 }
 
 Range ViEditor::TextObjectAWord(const EditorView& v) const {
-    const auto& line = v.lines[v.cursor_row];
+    const auto& line = v.buf->lines[v.cursor_row];
     int start = v.cursor_col;
     int end = v.cursor_col;
 
@@ -2016,7 +2021,7 @@ Range ViEditor::TextObjectAWord(const EditorView& v) const {
 }
 
 Range ViEditor::TextObjectInnerBigWord(const EditorView& v) const {
-    const auto& line = v.lines[v.cursor_row];
+    const auto& line = v.buf->lines[v.cursor_row];
     int start = v.cursor_col;
     int end = v.cursor_col;
     if (start >= static_cast<int>(line.size()) ||
@@ -2032,7 +2037,7 @@ Range ViEditor::TextObjectInnerBigWord(const EditorView& v) const {
 }
 
 Range ViEditor::TextObjectABigWord(const EditorView& v) const {
-    const auto& line = v.lines[v.cursor_row];
+    const auto& line = v.buf->lines[v.cursor_row];
     int start = v.cursor_col;
     int end = v.cursor_col;
     if (start < static_cast<int>(line.size()) &&
@@ -2061,7 +2066,7 @@ Range ViEditor::TextObjectABigWord(const EditorView& v) const {
 
 Range ViEditor::TextObjectQuoted(const EditorView& v,
                                  char quote) const {
-    const auto& line = v.lines[v.cursor_row];
+    const auto& line = v.buf->lines[v.cursor_row];
     // Find surrounding quotes
     int start = -1;
     for (int i = 0;
@@ -2099,9 +2104,9 @@ Range ViEditor::TextObjectBlock(const EditorView& v, char open,
     // Search backward for opening bracket
     while (row >= 0) {
         while (col >= 0) {
-            if (v.lines[row][col] == close)
+            if (v.buf->lines[row][col] == close)
                 ++depth;
-            else if (v.lines[row][col] == open) {
+            else if (v.buf->lines[row][col] == open) {
                 if (depth == 0) {
                     start_row = row;
                     start_col = col;
@@ -2116,7 +2121,7 @@ Range ViEditor::TextObjectBlock(const EditorView& v, char open,
             break;
         --row;
         if (row >= 0)
-            col = static_cast<int>(v.lines[row].size()) - 1;
+            col = static_cast<int>(v.buf->lines[row].size()) - 1;
     }
     if (!found_open)
         return {v.cursor_row, v.cursor_col, v.cursor_row, v.cursor_col};
@@ -2125,11 +2130,11 @@ Range ViEditor::TextObjectBlock(const EditorView& v, char open,
     row = start_row;
     col = start_col + 1;
     depth = 0;
-    while (row < static_cast<int>(v.lines.size())) {
-        while (col < static_cast<int>(v.lines[row].size())) {
-            if (v.lines[row][col] == open)
+    while (row < static_cast<int>(v.buf->lines.size())) {
+        while (col < static_cast<int>(v.buf->lines[row].size())) {
+            if (v.buf->lines[row][col] == open)
                 ++depth;
-            else if (v.lines[row][col] == close) {
+            else if (v.buf->lines[row][col] == close) {
                 if (depth == 0) {
                     end_row = row;
                     end_col = col;
@@ -2154,14 +2159,14 @@ Range ViEditor::TextObjectBlock(const EditorView& v, char open,
 Range ViEditor::TextObjectInnerParagraph(const EditorView& v) const {
     int start = v.cursor_row;
     int end = v.cursor_row;
-    int max_row = static_cast<int>(v.lines.size()) - 1;
+    int max_row = static_cast<int>(v.buf->lines.size()) - 1;
 
     // Search upward for paragraph boundary (empty line or file start)
-    while (start > 0 && !v.lines[start - 1].empty())
+    while (start > 0 && !v.buf->lines[start - 1].empty())
         --start;
 
     // Search downward for paragraph boundary
-    while (end < max_row && !v.lines[end + 1].empty())
+    while (end < max_row && !v.buf->lines[end + 1].empty())
         ++end;
 
     // end_row with end_col = 0 signals linewise (covers start..end
@@ -2172,22 +2177,22 @@ Range ViEditor::TextObjectInnerParagraph(const EditorView& v) const {
 Range ViEditor::TextObjectAParagraph(const EditorView& v) const {
     int start = v.cursor_row;
     int end = v.cursor_row;
-    int max_row = static_cast<int>(v.lines.size()) - 1;
+    int max_row = static_cast<int>(v.buf->lines.size()) - 1;
 
     // Search upward: skip blank lines to find paragraph start
-    while (start > 0 && v.lines[start - 1].empty())
+    while (start > 0 && v.buf->lines[start - 1].empty())
         --start;
-    while (start > 0 && !v.lines[start - 1].empty())
+    while (start > 0 && !v.buf->lines[start - 1].empty())
         --start;
 
     // Search downward: skip blank lines to find paragraph end
-    while (end < max_row && v.lines[end + 1].empty())
+    while (end < max_row && v.buf->lines[end + 1].empty())
         ++end;
-    while (end < max_row && !v.lines[end + 1].empty())
+    while (end < max_row && !v.buf->lines[end + 1].empty())
         ++end;
 
     // Include trailing blank lines
-    while (end < max_row && v.lines[end + 1].empty())
+    while (end < max_row && v.buf->lines[end + 1].empty())
         ++end;
 
     return {start, 0, end, 0};
@@ -2258,7 +2263,7 @@ Range ViEditor::GetRangeForTextObject(EditorView& view,
         if (inner.start_col > 0)
             inner.start_col--;
         if (inner.end_col <
-            static_cast<int>(view.lines[inner.end_row].size()))
+            static_cast<int>(view.buf->lines[inner.end_row].size()))
             inner.end_col++;
         return inner;
     }
@@ -2269,7 +2274,7 @@ Range ViEditor::GetRangeForTextObject(EditorView& view,
         if (inner.start_col > 0)
             inner.start_col--;
         if (inner.end_col <
-            static_cast<int>(view.lines[inner.end_row].size()))
+            static_cast<int>(view.buf->lines[inner.end_row].size()))
             inner.end_col++;
         return inner;
     }
@@ -2280,7 +2285,7 @@ Range ViEditor::GetRangeForTextObject(EditorView& view,
         if (inner.start_col > 0)
             inner.start_col--;
         if (inner.end_col <
-            static_cast<int>(view.lines[inner.end_row].size()))
+            static_cast<int>(view.buf->lines[inner.end_row].size()))
             inner.end_col++;
         return inner;
     }
@@ -2291,7 +2296,7 @@ Range ViEditor::GetRangeForTextObject(EditorView& view,
         if (inner.start_col > 0)
             inner.start_col--;
         if (inner.end_col <
-            static_cast<int>(view.lines[inner.end_row].size()))
+            static_cast<int>(view.buf->lines[inner.end_row].size()))
             inner.end_col++;
         return inner;
     }
@@ -2302,7 +2307,7 @@ Range ViEditor::GetRangeForTextObject(EditorView& view,
         if (inner.start_col > 0)
             inner.start_col--;
         if (inner.end_col <
-            static_cast<int>(view.lines[inner.end_row].size()))
+            static_cast<int>(view.buf->lines[inner.end_row].size()))
             inner.end_col++;
         return inner;
     }
@@ -2313,7 +2318,7 @@ Range ViEditor::GetRangeForTextObject(EditorView& view,
         if (inner.start_col > 0)
             inner.start_col--;
         if (inner.end_col <
-            static_cast<int>(view.lines[inner.end_row].size()))
+            static_cast<int>(view.buf->lines[inner.end_row].size()))
             inner.end_col++;
         return inner;
     }
@@ -2324,7 +2329,7 @@ Range ViEditor::GetRangeForTextObject(EditorView& view,
         if (inner.start_col > 0)
             inner.start_col--;
         if (inner.end_col <
-            static_cast<int>(view.lines[inner.end_row].size()))
+            static_cast<int>(view.buf->lines[inner.end_row].size()))
             inner.end_col++;
         return inner;
     }
@@ -2358,11 +2363,11 @@ void ViEditor::ExecuteOperator(EditorView& view, OperatorType op,
             int sr = std::min(adjusted.start_row, adjusted.end_row);
             int er = std::max(adjusted.start_row, adjusted.end_row);
             adjusted = {sr, 0, er,
-                        static_cast<int>(view.lines[er].size())};
+                        static_cast<int>(view.buf->lines[er].size())};
             yanked = ExtractRange(view, adjusted);
             PushUndo(view, sr, er - sr + 1);
             DeleteRange(view, adjusted);
-            if (sr < static_cast<int>(view.lines.size())) {
+            if (sr < static_cast<int>(view.buf->lines.size())) {
                 view.cursor_row = sr;
                 view.cursor_col = 0;
             }
@@ -2379,9 +2384,9 @@ void ViEditor::ExecuteOperator(EditorView& view, OperatorType op,
                 view.cursor_col = adjusted.end_col;
             }
         }
-        view.yank_register = yanked;
-        view.yank_linewise = linewise;
-        view.yank_blockwise = false;
+        view.buf->yank_register = yanked;
+        view.buf->yank_linewise = linewise;
+        view.buf->yank_blockwise = false;
         RecordChange(op, adjusted, linewise);
         break;
     }
@@ -2395,18 +2400,18 @@ void ViEditor::ExecuteOperator(EditorView& view, OperatorType op,
         if (adjusted.start_col == 0 && adjusted.end_col == 0) {
             linewise = true;
             adjusted = {change_sr, 0, change_er,
-                        static_cast<int>(view.lines[change_er].size())};
+                        static_cast<int>(view.buf->lines[change_er].size())};
             yanked = ExtractRange(view, adjusted);
             // Re-push undo with expanded range for linewise
-            view.undo_stack.pop_back();
-            --view.undo_index;
+            view.buf->undo_stack.pop_back();
+            --view.buf->undo_index;
             PushUndo(view, change_sr, change_er - change_sr + 1);
         }
         // The typing part will use char-level word-boundary undo entries
         DeleteRange(view, adjusted);
-        view.yank_register = yanked;
-        view.yank_linewise = linewise;
-        view.yank_blockwise = false;
+        view.buf->yank_register = yanked;
+        view.buf->yank_linewise = linewise;
+        view.buf->yank_blockwise = false;
         RecordChange(op, adjusted, linewise);
         if (linewise) {
             view.cursor_col = 0;
@@ -2431,14 +2436,14 @@ void ViEditor::ExecuteOperator(EditorView& view, OperatorType op,
             int sr = std::min(adjusted.start_row, adjusted.end_row);
             int er = std::max(adjusted.start_row, adjusted.end_row);
             adjusted = {sr, 0, er,
-                        static_cast<int>(view.lines[er].size())};
+                        static_cast<int>(view.buf->lines[er].size())};
             yanked = ExtractRange(view, adjusted);
-            view.yank_linewise = true;
+            view.buf->yank_linewise = true;
         } else {
-            view.yank_linewise = false;
+            view.buf->yank_linewise = false;
         }
-        view.yank_blockwise = false;
-        view.yank_register = yanked;
+        view.buf->yank_blockwise = false;
+        view.buf->yank_register = yanked;
         // Cursor doesn't move for yank
         SetStatus("Yanked " + std::to_string(yanked.size()) +
                   " line(s)");
@@ -2499,7 +2504,7 @@ void ViEditor::RecordChange(OperatorType op, const Range& r,
     last_change_.op = op;
     last_change_.range = r;
     last_change_.was_linewise = linewise;
-    last_change_.yanked_text = active().yank_register;
+    last_change_.yanked_text = active().buf->yank_register;
     last_change_valid_ = true;
 }
 
@@ -2524,18 +2529,18 @@ void ViEditor::RepeatLastChange() {
         for (char c : last_change_.inserted_text) {
             if (c == '\n') {
                 // Handle newline in insert
-                std::string& line = view.lines[view.cursor_row];
+                std::string& line = view.buf->lines[view.cursor_row];
                 std::string rest = line.substr(view.cursor_col);
                 line.erase(view.cursor_col);
-                view.lines.insert(
-                    view.lines.begin() + view.cursor_row + 1, rest);
+                view.buf->lines.insert(
+                    view.buf->lines.begin() + view.cursor_row + 1, rest);
                 ++view.cursor_row;
                 view.cursor_col = 0;
             } else {
                 InsertChar(view, c);
             }
         }
-        view.modified = true;
+        view.buf->modified = true;
         mode_ = Mode::NORMAL;
         // Move cursor left by 1 (Vim convention: dot leaves cursor on
         // last char)
@@ -2587,7 +2592,7 @@ Range ViEditor::GetVisualRange(const EditorView& v) const {
         r.end_row = v.cursor_row;
         r.end_col = v.cursor_col;
         // Character visual: include the character under cursor
-        if (r.end_col < static_cast<int>(v.lines[r.end_row].size())) {
+        if (r.end_col < static_cast<int>(v.buf->lines[r.end_row].size())) {
             if (r.start_row < r.end_row ||
                 (r.start_row == r.end_row && r.start_col <= r.end_col))
                 r.end_col++;
@@ -2624,9 +2629,9 @@ void ViEditor::ApplyOperatorToSelection(EditorView& view,
 
 void ViEditor::StartSearch(bool forward) {
     search_forward_ = forward;
-    active().search_pattern.clear();
-    active().search_matches.clear();
-    active().current_match_idx = -1;
+    active().buf->search_pattern.clear();
+    active().buf->search_matches.clear();
+    active().buf->current_match_idx = -1;
     if (forward)
         mode_ = Mode::SEARCH_FORWARD;
     else
@@ -2635,14 +2640,14 @@ void ViEditor::StartSearch(bool forward) {
 }
 
 void ViEditor::DoIncrementalSearch() {
-    if (active().search_pattern.empty()) {
-        active().search_matches.clear();
-        active().current_match_idx = -1;
+    if (active().buf->search_pattern.empty()) {
+        active().buf->search_matches.clear();
+        active().buf->current_match_idx = -1;
         return;
     }
 
     EditorView& view = active();
-    std::string pat = active().search_pattern;
+    std::string pat = active().buf->search_pattern;
 
     // Compile regex
     std::regex re;
@@ -2660,25 +2665,25 @@ void ViEditor::DoIncrementalSearch() {
         }
         re = std::regex(pat, flags);
     } catch (const std::regex_error&) {
-        active().search_matches.clear();
-        active().current_match_idx = -1;
+        active().buf->search_matches.clear();
+        active().buf->current_match_idx = -1;
         return;
     }
 
-    active().search_matches.clear();
-    for (int row = 0; row < static_cast<int>(view.lines.size());
+    active().buf->search_matches.clear();
+    for (int row = 0; row < static_cast<int>(view.buf->lines.size());
          ++row) {
-        std::sregex_iterator it(view.lines[row].begin(),
-                                view.lines[row].end(), re);
+        std::sregex_iterator it(view.buf->lines[row].begin(),
+                                view.buf->lines[row].end(), re);
         std::sregex_iterator end;
         for (; it != end; ++it) {
-            active().search_matches.push_back(
+            active().buf->search_matches.push_back(
                 {row, static_cast<int>(it->position())});
         }
     }
 
-    if (active().search_matches.empty()) {
-        active().current_match_idx = -1;
+    if (active().buf->search_matches.empty()) {
+        active().buf->current_match_idx = -1;
         return;
     }
 
@@ -2687,43 +2692,43 @@ void ViEditor::DoIncrementalSearch() {
         int start_row = view.cursor_row;
         int start_col = view.cursor_col + 1; // start after cursor
         // Find next match
-        active().current_match_idx = -1;
-        for (size_t i = 0; i < active().search_matches.size(); ++i) {
-            auto& m = active().search_matches[i];
+        active().buf->current_match_idx = -1;
+        for (size_t i = 0; i < active().buf->search_matches.size(); ++i) {
+            auto& m = active().buf->search_matches[i];
             if (m.first > start_row ||
                 (m.first == start_row && m.second >= start_col)) {
-                active().current_match_idx = static_cast<int>(i);
+                active().buf->current_match_idx = static_cast<int>(i);
                 break;
             }
         }
-        if (active().current_match_idx == -1 &&
-            !active().search_matches.empty())
-            active().current_match_idx = 0; // wrap
+        if (active().buf->current_match_idx == -1 &&
+            !active().buf->search_matches.empty())
+            active().buf->current_match_idx = 0; // wrap
     } else {
         int start_row = view.cursor_row;
         int start_col = view.cursor_col;
-        active().current_match_idx = -1;
+        active().buf->current_match_idx = -1;
         for (int i =
-                 static_cast<int>(active().search_matches.size()) - 1;
+                 static_cast<int>(active().buf->search_matches.size()) - 1;
              i >= 0; --i) {
-            auto& m = active().search_matches[i];
+            auto& m = active().buf->search_matches[i];
             if (m.first < start_row ||
                 (m.first == start_row && m.second < start_col)) {
-                active().current_match_idx = i;
+                active().buf->current_match_idx = i;
                 break;
             }
         }
-        if (active().current_match_idx == -1 &&
-            !active().search_matches.empty())
-            active().current_match_idx =
-                static_cast<int>(active().search_matches.size()) - 1;
+        if (active().buf->current_match_idx == -1 &&
+            !active().buf->search_matches.empty())
+            active().buf->current_match_idx =
+                static_cast<int>(active().buf->search_matches.size()) - 1;
     }
 
     // Jump to current match
-    if (active().current_match_idx >= 0 &&
-        active().current_match_idx <
-            static_cast<int>(active().search_matches.size())) {
-        auto& m = active().search_matches[active().current_match_idx];
+    if (active().buf->current_match_idx >= 0 &&
+        active().buf->current_match_idx <
+            static_cast<int>(active().buf->search_matches.size())) {
+        auto& m = active().buf->search_matches[active().buf->current_match_idx];
         view.cursor_row = m.first;
         view.cursor_col = m.second;
         UpdateScroll(view);
@@ -2731,19 +2736,19 @@ void ViEditor::DoIncrementalSearch() {
 }
 
 void ViEditor::FinalizeSearch() {
-    active().last_search = active().search_pattern;
-    if (!active().search_pattern.empty())
-        active().search_highlight = true;
+    active().buf->last_search = active().buf->search_pattern;
+    if (!active().buf->search_pattern.empty())
+        active().buf->search_highlight = true;
     mode_ = Mode::NORMAL;
     command_line_.clear();
 }
 
 void ViEditor::SearchNext(bool forward) {
-    if (active().last_search.empty()) {
+    if (active().buf->last_search.empty()) {
         SetStatus("No previous search pattern");
         return;
     }
-    active().search_pattern = active().last_search;
+    active().buf->search_pattern = active().buf->last_search;
     search_forward_ = forward;
     DoIncrementalSearch();
     FinalizeSearch();
@@ -2751,7 +2756,7 @@ void ViEditor::SearchNext(bool forward) {
 
 void ViEditor::SearchWordUnderCursor(bool forward) {
     EditorView& view = active();
-    const auto& line = view.lines[view.cursor_row];
+    const auto& line = view.buf->lines[view.cursor_row];
     // Find word boundaries at cursor
     int start = view.cursor_col;
     int end = view.cursor_col;
@@ -2787,21 +2792,21 @@ void ViEditor::SearchWordUnderCursor(bool forward) {
             escaped += '\\';
         escaped += c;
     }
-    active().search_pattern = "\\b" + escaped + "\\b";
-    active().last_search = active().search_pattern;
-    active().search_highlight = true;
+    active().buf->search_pattern = "\\b" + escaped + "\\b";
+    active().buf->last_search = active().buf->search_pattern;
+    active().buf->search_highlight = true;
     search_forward_ = forward;
     DoIncrementalSearch();
     mode_ = Mode::NORMAL;
 }
 
 void ViEditor::UpdateSearchMatches() {
-    if (active().last_search.empty())
+    if (active().buf->last_search.empty())
         return;
     EditorView& view = active();
-    active().search_pattern = active().last_search;
+    active().buf->search_pattern = active().buf->last_search;
     search_forward_ = true;
-    std::string pat = active().search_pattern;
+    std::string pat = active().buf->search_pattern;
 
     std::regex re;
     try {
@@ -2817,14 +2822,14 @@ void ViEditor::UpdateSearchMatches() {
         return;
     }
 
-    active().search_matches.clear();
-    for (int row = 0; row < static_cast<int>(view.lines.size());
+    active().buf->search_matches.clear();
+    for (int row = 0; row < static_cast<int>(view.buf->lines.size());
          ++row) {
-        std::sregex_iterator it(view.lines[row].begin(),
-                                view.lines[row].end(), re);
+        std::sregex_iterator it(view.buf->lines[row].begin(),
+                                view.buf->lines[row].end(), re);
         std::sregex_iterator end;
         for (; it != end; ++it) {
-            active().search_matches.push_back(
+            active().buf->search_matches.push_back(
                 {row, static_cast<int>(it->position())});
             // Also store length for highlighting (we can recompute)
         }
@@ -2833,10 +2838,10 @@ void ViEditor::UpdateSearchMatches() {
 }
 
 void ViEditor::ClearSearchHighlight() {
-    active().search_matches.clear();
-    active().current_match_idx = -1;
-    active().last_search.clear();
-    active().search_highlight = false;
+    active().buf->search_matches.clear();
+    active().buf->current_match_idx = -1;
+    active().buf->last_search.clear();
+    active().buf->search_highlight = false;
 }
 
 // ============================================================================
@@ -2849,7 +2854,7 @@ void ViEditor::ExecuteCommand() {
     if (command_line_ == "w") {
         SaveFile(view);
     } else if (command_line_ == "q") {
-        if (!view.modified) {
+        if (!view.buf->modified) {
             if (screen_)
                 screen_->Exit();
             return;
@@ -2865,15 +2870,15 @@ void ViEditor::ExecuteCommand() {
             screen_->Exit();
         return;
     } else if (command_line_.rfind("e ", 0) == 0) {
-        view.filename = command_line_.substr(2);
+        view.buf->filename = command_line_.substr(2);
         LoadFile(view);
         view.cursor_row = view.cursor_col = view.top_row = 0;
-        view.modified = false;
+        view.buf->modified = false;
     } else if (command_line_ == "e" || command_line_ == "e!") {
         // :e or :e! — reload current file from disk
         LoadFile(view);
         view.cursor_row = view.cursor_col = view.top_row = 0;
-        view.modified = false;
+        view.buf->modified = false;
     } else if (command_line_ == "nohl" ||
                command_line_ == "nohlsearch") {
         ClearSearchHighlight();
@@ -2891,24 +2896,50 @@ void ViEditor::ExecuteCommand() {
         }
     } else if (command_line_.rfind("split ", 0) == 0 ||
                command_line_ == "sp") {
-        SplitHorizontal();
         if (command_line_.size() > 6) {
-            views_.back().filename = command_line_.substr(6);
+            // :split <filename> — create new view with its own buffer
+            EditorView new_view;
+            new_view.buf = std::make_shared<Buffer>();
+            new_view.buf->filename = command_line_.substr(6);
+            new_view.active = false;
+            new_view.top_row = active().top_row;
+            views_.push_back(std::move(new_view));
+            active_view_ = static_cast<int>(views_.size()) - 1;
+            split_horizontal_ = true;
+            for (auto& v : views_)
+                v.active = false;
+            views_[active_view_].active = true;
             LoadFile(views_.back());
+            SetStatus("Horizontal split created");
+        } else {
+            SplitHorizontal();
         }
     } else if (command_line_.rfind("vsplit ", 0) == 0 ||
                command_line_ == "vsp") {
-        SplitVertical();
         if (command_line_.size() > 7) {
-            views_.back().filename = command_line_.substr(7);
+            // :vsplit <filename> — create new view with its own buffer
+            EditorView new_view;
+            new_view.buf = std::make_shared<Buffer>();
+            new_view.buf->filename = command_line_.substr(7);
+            new_view.active = false;
+            new_view.top_row = active().top_row;
+            views_.push_back(std::move(new_view));
+            active_view_ = static_cast<int>(views_.size()) - 1;
+            split_horizontal_ = false;
+            for (auto& v : views_)
+                v.active = false;
+            views_[active_view_].active = true;
             LoadFile(views_.back());
+            SetStatus("Vertical split created");
+        } else {
+            SplitVertical();
         }
     } else if (command_line_.rfind("set ", 0) == 0) {
         std::string setting = command_line_.substr(4);
         if (setting == "hlsearch")
-            active().search_highlight = true;
+            active().buf->search_highlight = true;
         else if (setting == "nohlsearch")
-            active().search_highlight = false;
+            active().buf->search_highlight = false;
         else
             SetStatus("Unknown option: " + setting);
     } else {
@@ -2951,7 +2982,7 @@ void ViEditor::SplitVertical() {
 void ViEditor::CloseSplit() {
     if (views_.size() <= 1) {
         // Close the last view = quit
-        if (!active().modified) {
+        if (!active().buf->modified) {
             if (screen_)
                 screen_->Exit();
             return;
@@ -3085,8 +3116,8 @@ Element ViEditor::RenderView(const EditorView& view) const {
     // Build a set of highlighted positions for search
     std::map<std::pair<int, int>, int>
         hl_lengths; // (row,col) -> match length
-    if (view.search_highlight && !view.last_search.empty()) {
-        std::string pat = view.last_search;
+    if (view.buf->search_highlight && !view.buf->last_search.empty()) {
+        std::string pat = view.buf->last_search;
         try {
             bool has_upper =
                 std::any_of(pat.begin(), pat.end(), [](char c) {
@@ -3096,10 +3127,10 @@ Element ViEditor::RenderView(const EditorView& view) const {
             if (!has_upper)
                 flags |= std::regex::icase;
             std::regex re(pat, flags);
-            for (int row = 0; row < static_cast<int>(view.lines.size());
+            for (int row = 0; row < static_cast<int>(view.buf->lines.size());
                  ++row) {
-                std::sregex_iterator it(view.lines[row].begin(),
-                                        view.lines[row].end(), re);
+                std::sregex_iterator it(view.buf->lines[row].begin(),
+                                        view.buf->lines[row].end(), re);
                 std::sregex_iterator end;
                 for (; it != end; ++it) {
                     hl_lengths[{row,
@@ -3119,8 +3150,8 @@ Element ViEditor::RenderView(const EditorView& view) const {
     for (int i = 0; i < visible_rows; ++i) {
         int file_row = view.top_row + i;
         if (file_row >= 0 &&
-            file_row < static_cast<int>(view.lines.size())) {
-            const std::string& line = view.lines[file_row];
+            file_row < static_cast<int>(view.buf->lines.size())) {
+            const std::string& line = view.buf->lines[file_row];
             bool is_cursor_row = (file_row == view.cursor_row);
             bool in_visual = visual_active_ && view.active;
 
@@ -3239,7 +3270,7 @@ Element ViEditor::RenderView(const EditorView& view) const {
 
                 // Get syntax highlighting spans for this line (cached)
                 const auto& syntax_spans =
-                    view.highlighter.Highlight(file_row, line);
+                    view.buf->highlighter.Highlight(file_row, line);
 
                 Elements parts;
                 for (int c = start_col; c < end_col; ++c) {
@@ -3324,7 +3355,7 @@ Element ViEditor::RenderStatusBar() const {
         break;
     }
 
-    std::string mod_str = view.modified ? "+" : " ";
+    std::string mod_str = view.buf->modified ? "+" : " ";
     std::string pending =
         (pending_count_ > 0
              ? " [" + std::to_string(pending_count_) + "]"
@@ -3333,8 +3364,8 @@ Element ViEditor::RenderStatusBar() const {
         (count_acc_ > 0 ? " count:" + std::to_string(count_acc_) : "");
 
     std::string left = mode_str + mod_str + pending + count_str + " " +
-                       view.filename +
-                       "  lines:" + std::to_string(view.lines.size());
+                       view.buf->filename +
+                       "  lines:" + std::to_string(view.buf->lines.size());
 
     if (!status_msg_.empty() && status_timeout_ > 0)
         left = status_msg_;
@@ -3343,7 +3374,7 @@ Element ViEditor::RenderStatusBar() const {
                         ", Col " + std::to_string(view.cursor_col + 1);
 
     // Position indicator: Top / Bot / xx%
-    int total = static_cast<int>(view.lines.size());
+    int total = static_cast<int>(view.buf->lines.size());
     int cur = view.cursor_row + 1;
     if (cur == 1)
         right += "  Top";
@@ -3370,10 +3401,10 @@ Element ViEditor::RenderCommandLine() const {
     if (mode_ == Mode::COMMAND)
         return text(":" + command_line_ + "█") | color(Color::Yellow);
     if (mode_ == Mode::SEARCH_FORWARD)
-        return text("/" + active().search_pattern + "█") |
+        return text("/" + active().buf->search_pattern + "█") |
                color(Color::Yellow);
     if (mode_ == Mode::SEARCH_BACKWARD)
-        return text("?" + active().search_pattern + "█") |
+        return text("?" + active().buf->search_pattern + "█") |
                color(Color::Yellow);
     // Always occupy a row so the layout doesn't shift when entering
     // command mode
@@ -3559,9 +3590,9 @@ bool ViEditor::OnEvent(Event event) {
         }
         if (mode_ == Mode::SEARCH_FORWARD ||
             mode_ == Mode::SEARCH_BACKWARD) {
-            active().search_matches.clear();
-            active().search_pattern.clear();
-            active().current_match_idx = -1;
+            active().buf->search_matches.clear();
+            active().buf->search_pattern.clear();
+            active().buf->current_match_idx = -1;
             command_line_.clear();
             mode_ = Mode::NORMAL;
             SetStatus("Interrupted");
@@ -3592,9 +3623,9 @@ bool ViEditor::OnEvent(Event event) {
             if (mode_ == Mode::SEARCH_FORWARD ||
                 mode_ == Mode::SEARCH_BACKWARD) {
                 // On escape from search, go back to original position
-                active().search_matches.clear();
-                active().search_pattern.clear();
-                active().current_match_idx = -1;
+                active().buf->search_matches.clear();
+                active().buf->search_pattern.clear();
+                active().buf->current_match_idx = -1;
             }
             if (mode_ == Mode::VISUAL || mode_ == Mode::VISUAL_LINE ||
                 mode_ == Mode::VISUAL_BLOCK) {
@@ -3795,7 +3826,7 @@ bool ViEditor::OnNormalEvent(Event event) {
                     if (count_acc_ > 0) {
                         view.cursor_row = std::min(
                             count_acc_ - 1,
-                            static_cast<int>(view.lines.size()) - 1);
+                            static_cast<int>(view.buf->lines.size()) - 1);
                     } else {
                         view.cursor_row = 0;
                     }
@@ -3827,8 +3858,8 @@ bool ViEditor::OnNormalEvent(Event event) {
                     LoadFile(view);
                     view.cursor_row = view.cursor_col = view.top_row =
                         0;
-                    view.modified = false;
-                    SetStatus("Reloaded " + view.filename);
+                    view.buf->modified = false;
+                    SetStatus("Reloaded " + view.buf->filename);
                     count_acc_ = 0;
                     return true;
                 }
@@ -3866,7 +3897,7 @@ bool ViEditor::OnNormalEvent(Event event) {
                         std::max(0, view.cursor_row - visible + 1);
                 }
                 int max_top = std::max(
-                    0, static_cast<int>(view.lines.size()) - visible);
+                    0, static_cast<int>(view.buf->lines.size()) - visible);
                 if (view.top_row > max_top)
                     view.top_row = max_top;
                 UpdateScroll(view);
@@ -3980,7 +4011,7 @@ bool ViEditor::OnNormalEvent(Event event) {
             case 'D': {
                 // Delete to end of line (like d$)
                 int end_col = static_cast<int>(
-                    view.lines[view.cursor_row].size());
+                    view.buf->lines[view.cursor_row].size());
                 Range r = {view.cursor_row, view.cursor_col,
                            view.cursor_row, end_col};
                 ExecuteOperator(view, OperatorType::DELETE_OP, r);
@@ -3990,7 +4021,7 @@ bool ViEditor::OnNormalEvent(Event event) {
             case 'C': {
                 // Change to end of line (like c$)
                 int end_col = static_cast<int>(
-                    view.lines[view.cursor_row].size());
+                    view.buf->lines[view.cursor_row].size());
                 Range r = {view.cursor_row, view.cursor_col,
                            view.cursor_row, end_col};
                 ExecuteOperator(view, OperatorType::CHANGE, r);
@@ -4002,7 +4033,7 @@ bool ViEditor::OnNormalEvent(Event event) {
             case 'Y': {
                 // Yank to end of line (like y$)
                 int end_col = static_cast<int>(
-                    view.lines[view.cursor_row].size());
+                    view.buf->lines[view.cursor_row].size());
                 Range r = {view.cursor_row, view.cursor_col,
                            view.cursor_row, end_col};
                 ExecuteOperator(view, OperatorType::YANK, r);
@@ -4049,7 +4080,7 @@ bool ViEditor::OnNormalEvent(Event event) {
             }
             if (c == '$') {
                 view.cursor_col = static_cast<int>(
-                    view.lines[view.cursor_row].size());
+                    view.buf->lines[view.cursor_row].size());
                 UpdateScroll(view);
                 count_acc_ = 0;
                 return true;
@@ -4138,10 +4169,10 @@ bool ViEditor::OnNormalEvent(Event event) {
                 if (count_acc_ > 0) {
                     view.cursor_row = std::min(
                         count - 1,
-                        static_cast<int>(view.lines.size()) - 1);
+                        static_cast<int>(view.buf->lines.size()) - 1);
                 } else {
                     view.cursor_row =
-                        static_cast<int>(view.lines.size()) - 1;
+                        static_cast<int>(view.buf->lines.size()) - 1;
                 }
                 view.cursor_col = 0;
                 UpdateScroll(view);
@@ -4214,8 +4245,8 @@ bool ViEditor::OnNormalEvent(Event event) {
                            view.cursor_row, view.cursor_col + count};
                 PushUndo(view, view.cursor_row, 1);
                 // Before deleting, yank
-                active().yank_register = ExtractRange(view, r);
-                active().yank_linewise = false;
+                active().buf->yank_register = ExtractRange(view, r);
+                active().buf->yank_linewise = false;
                 for (int i = 0; i < count; ++i)
                     DeleteChar(view);
                 UpdateScroll(view);
@@ -4255,7 +4286,7 @@ bool ViEditor::OnNormalEvent(Event event) {
             if (c == 'A') {
                 BeginInsertUndo(view);
                 view.cursor_col = static_cast<int>(
-                    view.lines[view.cursor_row].size());
+                    view.buf->lines[view.cursor_row].size());
                 UpdateScroll(view);
                 count_acc_ = 0;
                 mode_ = Mode::INSERT;
@@ -4266,11 +4297,11 @@ bool ViEditor::OnNormalEvent(Event event) {
             if (c == 'o') {
                 BeginInsertUndo(view);
                 PushUndo(view, view.cursor_row, 1);
-                view.lines.insert(
-                    view.lines.begin() + view.cursor_row + 1, "");
+                view.buf->lines.insert(
+                    view.buf->lines.begin() + view.cursor_row + 1, "");
                 ++view.cursor_row;
                 view.cursor_col = 0;
-                view.modified = true;
+                view.buf->modified = true;
                 UpdateScroll(view);
                 count_acc_ = 0;
                 mode_ = Mode::INSERT;
@@ -4281,10 +4312,10 @@ bool ViEditor::OnNormalEvent(Event event) {
             if (c == 'O') {
                 BeginInsertUndo(view);
                 PushUndo(view, view.cursor_row, 1);
-                view.lines.insert(view.lines.begin() + view.cursor_row,
+                view.buf->lines.insert(view.buf->lines.begin() + view.cursor_row,
                                   "");
                 view.cursor_col = 0;
-                view.modified = true;
+                view.buf->modified = true;
                 UpdateScroll(view);
                 count_acc_ = 0;
                 mode_ = Mode::INSERT;
@@ -4296,17 +4327,17 @@ bool ViEditor::OnNormalEvent(Event event) {
             // p, P - put/paste
             if (c == 'p') {
                 for (int i = 0; i < count; ++i)
-                    PutAfter(view, active().yank_register,
-                             active().yank_linewise,
-                             active().yank_blockwise);
+                    PutAfter(view, active().buf->yank_register,
+                             active().buf->yank_linewise,
+                             active().buf->yank_blockwise);
                 count_acc_ = 0;
                 return true;
             }
             if (c == 'P') {
                 for (int i = 0; i < count; ++i)
-                    PutBefore(view, active().yank_register,
-                              active().yank_linewise,
-                              active().yank_blockwise);
+                    PutBefore(view, active().buf->yank_register,
+                              active().buf->yank_linewise,
+                              active().buf->yank_blockwise);
                 count_acc_ = 0;
                 return true;
             }
@@ -4397,14 +4428,14 @@ bool ViEditor::OnNormalEvent(Event event) {
         int amount = half * count;
         view.cursor_row =
             std::clamp(view.cursor_row + dir * amount, 0,
-                       static_cast<int>(view.lines.size()) - 1);
+                       static_cast<int>(view.buf->lines.size()) - 1);
         view.cursor_col = std::min(
             view.cursor_col,
-            static_cast<int>(view.lines[view.cursor_row].size()));
+            static_cast<int>(view.buf->lines[view.cursor_row].size()));
         // Scroll the view so cursor stays centered-ish
         view.top_row = std::clamp(
             view.cursor_row - half / 2, 0,
-            std::max(0, static_cast<int>(view.lines.size()) - half));
+            std::max(0, static_cast<int>(view.buf->lines.size()) - half));
         UpdateScroll(view);
         count_acc_ = 0;
         return true;
@@ -4424,13 +4455,13 @@ bool ViEditor::OnNormalEvent(Event event) {
         int amount = half * count;
         view.cursor_row =
             std::clamp(view.cursor_row + amount, 0,
-                       static_cast<int>(view.lines.size()) - 1);
+                       static_cast<int>(view.buf->lines.size()) - 1);
         view.cursor_col = std::min(
             view.cursor_col,
-            static_cast<int>(view.lines[view.cursor_row].size()));
+            static_cast<int>(view.buf->lines[view.cursor_row].size()));
         view.top_row = std::clamp(
             view.cursor_row - half / 2, 0,
-            std::max(0, static_cast<int>(view.lines.size()) - half));
+            std::max(0, static_cast<int>(view.buf->lines.size()) - half));
         UpdateScroll(view);
         count_acc_ = 0;
         return true;
@@ -4442,13 +4473,13 @@ bool ViEditor::OnNormalEvent(Event event) {
         int amount = half * count;
         view.cursor_row =
             std::clamp(view.cursor_row - amount, 0,
-                       static_cast<int>(view.lines.size()) - 1);
+                       static_cast<int>(view.buf->lines.size()) - 1);
         view.cursor_col = std::min(
             view.cursor_col,
-            static_cast<int>(view.lines[view.cursor_row].size()));
+            static_cast<int>(view.buf->lines[view.cursor_row].size()));
         view.top_row = std::clamp(
             view.cursor_row - half / 2, 0,
-            std::max(0, static_cast<int>(view.lines.size()) - half));
+            std::max(0, static_cast<int>(view.buf->lines.size()) - half));
         UpdateScroll(view);
         count_acc_ = 0;
         return true;
@@ -4503,7 +4534,7 @@ bool ViEditor::OnInsertEvent(Event event) {
         PushInsertWordUndo(view);
         // Push line-level undo for the line split
         PushUndo(view, view.cursor_row, 2);
-        std::string& line = view.lines[view.cursor_row];
+        std::string& line = view.buf->lines[view.cursor_row];
         // Compute leading whitespace of current line for auto-indent
         int indent = 0;
         while (indent < static_cast<int>(line.size()) &&
@@ -4513,16 +4544,16 @@ bool ViEditor::OnInsertEvent(Event event) {
         line.erase(view.cursor_col);
         // Prepend the indentation to the new line
         std::string ws = line.substr(0, indent);
-        view.lines.insert(view.lines.begin() + view.cursor_row + 1,
+        view.buf->lines.insert(view.buf->lines.begin() + view.cursor_row + 1,
                           ws + rest);
         ++view.cursor_row;
         view.cursor_col = indent;
-        view.modified = true;
+        view.buf->modified = true;
         UpdateScroll(view);
         // Reset word tracking after structural change
-        view.insert_word_row = view.cursor_row;
-        view.insert_word_col = view.cursor_col;
-        view.insert_accumulated.clear();
+        view.buf->insert_word_row = view.cursor_row;
+        view.buf->insert_word_col = view.cursor_col;
+        view.buf->insert_accumulated.clear();
         if (recording_insert_)
             insert_recording_ += '\n';
         return true;
@@ -4534,43 +4565,43 @@ bool ViEditor::OnInsertEvent(Event event) {
             PushInsertWordUndo(view);
             // Record the character being deleted for undo
             char deleted =
-                view.lines[view.cursor_row][view.cursor_col - 1];
+                view.buf->lines[view.cursor_row][view.cursor_col - 1];
             int pre_col = view.cursor_col; // position before deletion
             if (recording_insert_ && !insert_recording_.empty())
                 insert_recording_.pop_back();
-            view.lines[view.cursor_row].erase(view.cursor_col - 1, 1);
+            view.buf->lines[view.cursor_row].erase(view.cursor_col - 1, 1);
             --view.cursor_col;
-            view.modified = true;
+            view.buf->modified = true;
             // Push char-level undo for the deletion
             // cursor before change = (row, pre_col); after = (row, pre_col-1)
             PushCharUndo(view, view.cursor_row, view.cursor_col,
                          view.cursor_row, view.cursor_col,
                          std::string(1, deleted), "");
             // Override cursor pos in the entry to pre-deletion position
-            view.undo_stack.back().cursor_row = view.cursor_row;
-            view.undo_stack.back().cursor_col = pre_col;
+            view.buf->undo_stack.back().cursor_row = view.cursor_row;
+            view.buf->undo_stack.back().cursor_col = pre_col;
             // Reset word tracking to current position
-            view.insert_word_row = view.cursor_row;
-            view.insert_word_col = view.cursor_col;
-            view.insert_accumulated.clear();
+            view.buf->insert_word_row = view.cursor_row;
+            view.buf->insert_word_col = view.cursor_col;
+            view.buf->insert_accumulated.clear();
         } else if (view.cursor_row > 0) {
             PushInsertWordUndo(view);
             // Joining lines: use line-level undo
             PushUndo(view, view.cursor_row - 1, 2);
             if (recording_insert_ && !insert_recording_.empty())
                 insert_recording_.pop_back();
-            std::string& prev = view.lines[view.cursor_row - 1];
-            std::string& curr = view.lines[view.cursor_row];
+            std::string& prev = view.buf->lines[view.cursor_row - 1];
+            std::string& curr = view.buf->lines[view.cursor_row];
             view.cursor_col = static_cast<int>(prev.size());
             prev += curr;
-            view.lines.erase(view.lines.begin() + view.cursor_row,
-                             view.lines.begin() + view.cursor_row + 1);
+            view.buf->lines.erase(view.buf->lines.begin() + view.cursor_row,
+                             view.buf->lines.begin() + view.cursor_row + 1);
             --view.cursor_row;
-            view.modified = true;
+            view.buf->modified = true;
             UpdateScroll(view);
-            view.insert_word_row = view.cursor_row;
-            view.insert_word_col = view.cursor_col;
-            view.insert_accumulated.clear();
+            view.buf->insert_word_row = view.cursor_row;
+            view.buf->insert_word_col = view.cursor_col;
+            view.buf->insert_accumulated.clear();
         }
         return true;
     }
@@ -4592,20 +4623,20 @@ bool ViEditor::OnInsertEvent(Event event) {
             // At start of line: join with previous line
             if (view.cursor_row > 0) {
                 PushUndo(view, view.cursor_row - 1, 2);
-                std::string& prev = view.lines[view.cursor_row - 1];
-                std::string& curr = view.lines[view.cursor_row];
+                std::string& prev = view.buf->lines[view.cursor_row - 1];
+                std::string& curr = view.buf->lines[view.cursor_row];
                 view.cursor_col = static_cast<int>(prev.size());
                 prev += curr;
-                view.lines.erase(view.lines.begin() + view.cursor_row,
-                                 view.lines.begin() + view.cursor_row +
+                view.buf->lines.erase(view.buf->lines.begin() + view.cursor_row,
+                                 view.buf->lines.begin() + view.cursor_row +
                                      1);
                 --view.cursor_row;
-                view.modified = true;
+                view.buf->modified = true;
                 UpdateScroll(view);
             }
         } else {
             PushUndo(view, view.cursor_row, 1);
-            std::string& line = view.lines[view.cursor_row];
+            std::string& line = view.buf->lines[view.cursor_row];
             int pos = view.cursor_col;
             // Skip whitespace before cursor
             while (pos > 0 && IsSpaceOrTab(line[pos - 1]))
@@ -4626,13 +4657,13 @@ bool ViEditor::OnInsertEvent(Event event) {
             if (count > 0) {
                 line.erase(pos, count);
                 view.cursor_col = pos;
-                view.modified = true;
+                view.buf->modified = true;
             }
         }
         // Reset word tracking after Ctrl-W deletion
-        view.insert_word_row = view.cursor_row;
-        view.insert_word_col = view.cursor_col;
-        view.insert_accumulated.clear();
+        view.buf->insert_word_row = view.cursor_row;
+        view.buf->insert_word_col = view.cursor_col;
+        view.buf->insert_accumulated.clear();
         return true;
     }
 
@@ -4657,8 +4688,8 @@ bool ViEditor::OnInsertEvent(Event event) {
             bool is_punct = !is_word && !is_space;
 
             // Check if the new char belongs to a different chunk class
-            if (!view.insert_accumulated.empty()) {
-                char first = view.insert_accumulated[0];
+            if (!view.buf->insert_accumulated.empty()) {
+                char first = view.buf->insert_accumulated[0];
                 bool acc_is_word =
                     IsWordChar(static_cast<unsigned char>(first));
                 bool acc_is_space = IsSpaceOrTab(first);
@@ -4671,13 +4702,13 @@ bool ViEditor::OnInsertEvent(Event event) {
             InsertChar(view, c);
 
             // Track for word-boundary undo
-            if (!view.insert_word_tracking) {
-                view.insert_word_tracking = true;
-                view.insert_word_row = view.cursor_row;
-                view.insert_word_col = view.cursor_col - 1;
-                view.insert_accumulated.clear();
+            if (!view.buf->insert_word_tracking) {
+                view.buf->insert_word_tracking = true;
+                view.buf->insert_word_row = view.cursor_row;
+                view.buf->insert_word_col = view.cursor_col - 1;
+                view.buf->insert_accumulated.clear();
             }
-            view.insert_accumulated += c;
+            view.buf->insert_accumulated += c;
 
             // Each punctuation character is its own undo entry
             if (is_punct)
@@ -4815,7 +4846,7 @@ bool ViEditor::OnOperatorPendingEvent(Event event) {
                 int start_row = view.cursor_row;
                 int end_row =
                     std::min(start_row + final_count - 1,
-                             static_cast<int>(view.lines.size()) - 1);
+                             static_cast<int>(view.buf->lines.size()) - 1);
                 Range r = {start_row, 0, end_row,
                            0}; // 0 end_col signals linewise
                 ExecuteOperator(view, pending_op_, r);
@@ -4969,7 +5000,7 @@ bool ViEditor::OnOperatorPendingEvent(Event event) {
                 if (motion_count_ > 0)
                     pos = {std::min(
                                final_count - 1,
-                               static_cast<int>(view.lines.size()) - 1),
+                               static_cast<int>(view.buf->lines.size()) - 1),
                            0};
                 else
                     pos = MotionFileEnd(view);
@@ -5038,15 +5069,15 @@ bool ViEditor::OnSearchEvent(Event event) {
         return true;
     }
     if (event == Event::Escape) {
-        active().search_pattern.clear();
-        active().search_matches.clear();
-        active().current_match_idx = -1;
+        active().buf->search_pattern.clear();
+        active().buf->search_matches.clear();
+        active().buf->current_match_idx = -1;
         mode_ = Mode::NORMAL;
         return true;
     }
     if (event == Event::Backspace || event == Event::Delete) {
-        if (!active().search_pattern.empty()) {
-            active().search_pattern.pop_back();
+        if (!active().buf->search_pattern.empty()) {
+            active().buf->search_pattern.pop_back();
             DoIncrementalSearch();
         }
         return true;
@@ -5054,7 +5085,7 @@ bool ViEditor::OnSearchEvent(Event event) {
     if (event.is_character()) {
         std::string ch = event.character();
         if (ch.size() == 1 && ch[0] >= 32 && ch[0] <= 126) {
-            active().search_pattern.push_back(ch[0]);
+            active().buf->search_pattern.push_back(ch[0]);
             DoIncrementalSearch();
         }
         return true;
@@ -5077,13 +5108,13 @@ bool ViEditor::OnVisualEvent(Event event) {
         int dir = (event == Event::Special({4})) ? 1 : -1;
         view.cursor_row =
             std::clamp(view.cursor_row + dir * half, 0,
-                       static_cast<int>(view.lines.size()) - 1);
+                       static_cast<int>(view.buf->lines.size()) - 1);
         view.cursor_col = std::min(
             view.cursor_col,
-            static_cast<int>(view.lines[view.cursor_row].size()));
+            static_cast<int>(view.buf->lines[view.cursor_row].size()));
         view.top_row = std::clamp(
             view.cursor_row - half / 2, 0,
-            std::max(0, static_cast<int>(view.lines.size()) - half));
+            std::max(0, static_cast<int>(view.buf->lines.size()) - half));
         UpdateScroll(view);
         return true;
     }
@@ -5169,7 +5200,7 @@ bool ViEditor::OnVisualEvent(Event event) {
     }
     if (event == Event::Character('$')) {
         view.cursor_col =
-            static_cast<int>(view.lines[view.cursor_row].size());
+            static_cast<int>(view.buf->lines[view.cursor_row].size());
         UpdateScroll(view);
         return true;
     }
@@ -5186,7 +5217,7 @@ bool ViEditor::OnVisualEvent(Event event) {
         return true;
     }
     if (event == Event::Character('G')) {
-        view.cursor_row = static_cast<int>(view.lines.size()) - 1;
+        view.cursor_row = static_cast<int>(view.buf->lines.size()) - 1;
         view.cursor_col = 0;
         UpdateScroll(view);
         return true;
@@ -5227,11 +5258,11 @@ bool ViEditor::OnVisualLineEvent(Event event) {
         int dir = (event == Event::Special({4})) ? 1 : -1;
         view.cursor_row =
             std::clamp(view.cursor_row + dir * half, 0,
-                       static_cast<int>(view.lines.size()) - 1);
+                       static_cast<int>(view.buf->lines.size()) - 1);
         view.cursor_col = 0;
         view.top_row = std::clamp(
             view.cursor_row - half / 2, 0,
-            std::max(0, static_cast<int>(view.lines.size()) - half));
+            std::max(0, static_cast<int>(view.buf->lines.size()) - half));
         UpdateScroll(view);
         return true;
     }
@@ -5276,7 +5307,7 @@ bool ViEditor::OnVisualLineEvent(Event event) {
         return true;
     }
     if (event == Event::Character('G')) {
-        view.cursor_row = static_cast<int>(view.lines.size()) - 1;
+        view.cursor_row = static_cast<int>(view.buf->lines.size()) - 1;
         view.cursor_col = 0;
         UpdateScroll(view);
         return true;
@@ -5309,13 +5340,13 @@ bool ViEditor::OnVisualBlockEvent(Event event) {
         int dir = (event == Event::Special({4})) ? 1 : -1;
         view.cursor_row =
             std::clamp(view.cursor_row + dir * half, 0,
-                       static_cast<int>(view.lines.size()) - 1);
+                       static_cast<int>(view.buf->lines.size()) - 1);
         view.cursor_col = std::min(
             view.cursor_col,
-            static_cast<int>(view.lines[view.cursor_row].size()));
+            static_cast<int>(view.buf->lines[view.cursor_row].size()));
         view.top_row = std::clamp(
             view.cursor_row - half / 2, 0,
-            std::max(0, static_cast<int>(view.lines.size()) - half));
+            std::max(0, static_cast<int>(view.buf->lines.size()) - half));
         UpdateScroll(view);
         return true;
     }
@@ -5370,7 +5401,7 @@ bool ViEditor::OnVisualBlockEvent(Event event) {
     }
     if (event == Event::Character('$')) {
         view.cursor_col =
-            static_cast<int>(view.lines[view.cursor_row].size());
+            static_cast<int>(view.buf->lines[view.cursor_row].size());
         UpdateScroll(view);
         return true;
     }
@@ -5380,7 +5411,7 @@ bool ViEditor::OnVisualBlockEvent(Event event) {
         return true;
     }
     if (event == Event::Character('G')) {
-        view.cursor_row = static_cast<int>(view.lines.size()) - 1;
+        view.cursor_row = static_cast<int>(view.buf->lines.size()) - 1;
         view.cursor_col = visual_block_start_col_;
         UpdateScroll(view);
         return true;
